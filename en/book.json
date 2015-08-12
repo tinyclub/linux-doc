@@ -1,0 +1,13 @@
+{
+    "author": "Wu Zhangjin <wuzhangjin@gmail.com>",
+    "description": "Gitbook Version of Linux Documentation",
+    "generator": "site",
+    "links": {
+        "sidebar": {
+            "泰晓科技": "http://www.tinylab.org",
+            "Linux Kernel Homepage": "http://www.kernel.org",
+            "Linux Documentation Homepage": "https://www.kernel.org/doc/"
+        }
+    },
+    "title": "Linux Kernel Documentation (Gitbook)"
+}
