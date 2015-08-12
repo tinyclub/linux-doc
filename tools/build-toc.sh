@@ -21,8 +21,8 @@ sed -i -e "${ins_line}i\\\\" ${md}
 
 echo > toc.tmp
 
-grep "^###* " -ur $md | grep -v "## 目录" | grep -n "^#" | \
-	sed -e "s/:/a/g;" |\
+grep "^###* " -ur $md | grep -v "## Contents" | grep -n "^#" | \
+	sed -e "s/^\([0-9]*\):/\1a/g;" |\
 	sed -e "s/\([0-9]*\)a\(#[^ ]*\) \(.*\)/\1a\2 [\3](#$toc\1)/g" |\
 	sed -e "s/#####/+            -   /g;s/####/+        -   /g" |\
 	sed -e "s/###/+    -   /g;s/##/-   /g" |\
@@ -34,12 +34,12 @@ sed -i -e "s/^+   /   /g;" toc.tmp
 # Insert the toc
 
 sed -i -e "${ins_line}r toc.tmp" ${md}
-sed -i -e "${ins_line}a## 目录\\" ${md}
+sed -i -e "${ins_line}a## Contents\\" ${md}
 sed -i -e "${ins_line}a\\\\" ${md}
 
 # Replace the #* with h* + id info
 t=0
-for line in `grep -n "^##" $md | grep -v "## 目录" | cut -d':' -f1`
+for line in `grep -n "^##" $md | grep -v "## Contents" | cut -d':' -f1`
 do
 	((line+=t))
 	((t++))
