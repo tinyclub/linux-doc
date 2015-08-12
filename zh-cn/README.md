@@ -26,7 +26,7 @@ v 0.01
 
 ## 参与翻译
 
-请参考[译者须知](http://tinylab.gitbooks.io/linux-doc/content/zh/doc/index.html)。
+请参考[译者须知](doc/README.md)。
 
 ### 安装
 
