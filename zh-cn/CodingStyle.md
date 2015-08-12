@@ -706,17 +706,25 @@ Vim 能够解释这样的标记：
 <span id="toc_16506_3287_20"></span>
 ## 附录 I：参考
 
-*   [The C Programming Language 第二版](http://cm.bell-labs.com/cm/cs/cbook/), 作者 Brian W. Kernighan
-    和 Denni M. Ritchie. Prentice Hall, Inc., 1988. ISBN 0-13-110362-8 (软皮), 0-13-110370-9 (硬皮)
+*   [The C Programming Language 第二版](http://cm.bell-labs.com/cm/cs/cbook/)
 
-*   [The Practice of Programming](http://cm.bell-labs.com/cm/cs/tpop/)，作者 Brian W. Kernighan 和 Rob Pike.  Addison-Wesley, Inc., 1999.
-    ISBN 0-201-61586-X。
+    作者 Brian W. Kernighan 和 Denni M. Ritchie. Prentice Hall, Inc., 1988. ISBN 0-13-110362-8 (软皮), 0-13-110370-9 (硬皮)
 
-*   cpp，gcc，gcc internals 和 indent 的 GNU 手册—— 和 K&R 及本文相符合的部分，全部可以在 <http://www.gnu.org/manual/> 找到
+*   [The Practice of Programming](http://cm.bell-labs.com/cm/cs/tpop/)
 
-*   [WG14 是 C 语言的国际标准化工作组](http://www.open-std.org/JTC1/SC22/WG14/)
+    作者 Brian W. Kernighan 和 Rob Pike.  Addison-Wesley, Inc., 1999. ISBN 0-201-61586-X。
 
-*   [Kernel CodingStyle](http://www.kroah.com/linux/talks/ols_2002_kernel_codingstyle_talk/html/)，作者 greg@kroah.com 发表于 OLS 2002。
+*   [GNU 手册](http://www.gnu.org/manual/)
+
+    cpp，gcc，gcc internals 和 indent 的 GNU 手册—— 和 K&R 及本文相符合的部分。
+
+*   [WG14](http://www.open-std.org/JTC1/SC22/WG14/)
+
+    C 语言的国际标准化工作组
+
+*   [Kernel CodingStyle](http://www.kroah.com/linux/talks/ols_2002_kernel_codingstyle_talk/html/)
+
+    作者 greg@kroah.com 发表于 OLS 2002。
 
 > --
 > 最后更新于 2007 年 7 月 13 日。
