@@ -1,0 +1,13 @@
+{
+    "author": "Wu Zhangjin <wuzhangjin@gmail.com>",
+    "description": "转换为 GitBook 的中文版 Linux 内核文档",
+    "generator": "site",
+    "links": {
+        "sidebar": {
+            "泰晓科技": "http://www.tinylab.org",
+            "Linux 内核首页": "http://www.kernel.org",
+            "Linux 内核文档": "https://www.kernel.org/doc/"
+        }
+    },
+    "title": "Linux 内核文档（中文版）"
+}
