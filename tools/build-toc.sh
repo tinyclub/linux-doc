@@ -26,8 +26,10 @@ grep "^###* " -ur $md | grep -v "## Contents" | grep -n "^#" | \
 	sed -e "s/\([0-9]*\)a\(#[^ ]*\) \(.*\)/\1a\2 [\3](#$toc\1)/g" |\
 	sed -e "s/#####/+            -   /g;s/####/+        -   /g" |\
 	sed -e "s/###/+    -   /g;s/##/-   /g" |\
+	sed -e "s/'/-+-+-+-/g" | sed -e "s/: */: /g" |\
 	xargs -i sed -i -e "{}" toc.tmp;
 
+sed -i -e "s/-+-+-+-/'/g" toc.tmp
 sed -i -e "${ins_line}i\\" toc.tmp
 sed -i -e "s/^+   /   /g;" toc.tmp
 
