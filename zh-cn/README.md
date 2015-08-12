@@ -21,6 +21,7 @@ v 0.01
 
 -   代码仓库：<https://github.com/tinyclub/linux-doc>
 -   在线阅读：<http://tinylab.gitbooks.io/linux-doc>
+-   项目首页：<http://www.tinylab.org/linux-doc>
 
 ## 参与翻译
 
