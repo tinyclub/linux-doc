@@ -13,8 +13,9 @@ v 0.01
 * 所有翻译结果用 [GitBook](http://www.gitbook.com) 来展示，并方便转换为如下格式（pdf, mobi, epub, html 等）。
 * 所有翻译后的文档格式统一为 GitBook 支持的 [Markdown 格式](http://help.gitbook.com/format/markdown.html)。
 * 为了专注于翻译本身，所有翻译结果暂时不考虑 Upstream 到内核主线。
-* 优先把 `Documentation/zh_CN/` 下的中文文档转换为 Markdown 格式
-* 目录结构尽量遵循 `Documentation/` 的原有方式
+* 优先把 `Documentation/zh_CN/` 下的中文文档转换为 Markdown 格式。
+* 目录结构尽量遵循 `Documentation/` 的原有方式。
+* 基于目前最新的长期维护版本 **3.18** 内核代码下的 [Documentation/](https://git.kernel.org/cgit/linux/kernel/git/stable/linux-stable.git/tree/Documentation?id=refs/tags/v3.18.20) 进行翻译和更新。
 
 ## 简介
 
