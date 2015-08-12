@@ -14,8 +14,9 @@ v 0.01
 * 所有翻译后的文档格式统一为 GitBook 支持的 [Markdown 格式](http://help.gitbook.com/format/markdown.html)。
 * 为了专注于翻译本身，所有翻译结果暂时不考虑 Upstream 到内核主线。
 * 优先把 `Documentation/zh_CN/` 下的中文文档转换为 Markdown 格式。
+* 在翻译新文章时，请先把英文原文转为 Markdown 格式并存到 `en/` 下，之后再翻译为中文存到 `zh-cn/`。
 * 目录结构尽量遵循 `Documentation/` 的原有方式。
-* 基于目前最新的长期维护版本 **3.18** 内核代码下的 [Documentation/](https://git.kernel.org/cgit/linux/kernel/git/stable/linux-stable.git/tree/Documentation?id=refs/tags/v3.18.20) 进行翻译和更新。
+* 基于目前最新的 longterm 版本 **3.18** 内核代码下的 [Documentation/](https://git.kernel.org/cgit/linux/kernel/git/stable/linux-stable.git/tree/Documentation?id=refs/tags/v3.18.20) 进行翻译和更新。
 
 ## 简介
 
@@ -25,7 +26,7 @@ v 0.01
 
 ## 参与翻译
 
-可先参考另外一个翻译项目的[译者须知](http://tinylab.gitbooks.io/elinux/content/zh/doc/index.html#procedure)，该项目的详细参与过程稍后补充。
+请参考[译者须知](http://tinylab.gitbooks.io/linux-doc/content/zh/doc/index.html)。
 
 ### 安装
 
@@ -33,8 +34,8 @@ v 0.01
 
     $ sudo aptitude install -y retext git nodejs npm
     $ sudo ln -fs /usr/bin/nodejs /usr/bin/node
-    $ aptitude install -y calibre fonts-arphic-gbsn00lp
-    $ npm install gitbook-cli -g
+    $ sudo aptitude install -y calibre fonts-arphic-gbsn00lp
+    $ sudo npm install gitbook-cli -g
 
 ### 下载
 
