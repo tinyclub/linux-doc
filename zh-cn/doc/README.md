@@ -137,7 +137,7 @@
 
         git checkout -b codingstyle_upstream_v1 codingstyle_upstream
 
-        // 处理来自校订人员的各种翻译
+        // 处理来自校订人员的各种反馈
 
         git fetch --all
         git rebase --onto tinyclub/develop --root
