@@ -2,15 +2,27 @@
 
 ## Contents
 
--    [Chapter 1: Indentation](#toc_11973_18139_1)
--    [Chapter 2: Breaking long lines and strings](#toc_11973_18139_2)
--    [Chapter 3: Placing Braces and Spaces](#toc_11973_18139_3)
-    -    [3.1:  Spaces](#toc_11973_18139_4)
--    [Chapter 4: Naming](#toc_11973_18139_5)
--    [Chapter 5: Typedefs](#toc_11973_18139_6)
--    [Chapter 6: Functions](#toc_11973_18139_7)
--    [Chapter 7: Centralized exiting of functions](#toc_11973_18139_8)
--    [Chapter 8: Commenting](#toc_11973_18139_9)
+-    [Chapter 1: Indentation](#toc_17266_29298_1)
+-    [Chapter 2: Breaking long lines and strings](#toc_17266_29298_2)
+-    [Chapter 3: Placing Braces and Spaces](#toc_17266_29298_3)
+    -    [3.1: Spaces](#toc_17266_29298_4)
+-    [Chapter 4: Naming](#toc_17266_29298_5)
+-    [Chapter 5: Typedefs](#toc_17266_29298_6)
+-    [Chapter 6: Functions](#toc_17266_29298_7)
+-    [Chapter 7: Centralized exiting of functions](#toc_17266_29298_8)
+-    [Chapter 8: Commenting](#toc_17266_29298_9)
+-    [Chapter 9: You've made a mess of it](#toc_17266_29298_10)
+-    [Chapter 10: Kconfig configuration files](#toc_17266_29298_11)
+-    [Chapter 11: Data structures](#toc_17266_29298_12)
+-    [Chapter 12: Macros, Enums and RTL](#toc_17266_29298_13)
+-    [Chapter 13: Printing kernel messages](#toc_17266_29298_14)
+-    [Chapter 14: Allocating memory](#toc_17266_29298_15)
+-    [Chapter 15: The inline disease](#toc_17266_29298_16)
+-    [Chapter 16: Function return values and names](#toc_17266_29298_17)
+-    [Chapter 17: Don't re-invent the kernel macros](#toc_17266_29298_18)
+-    [Chapter 18: Editor modelines and other cruft](#toc_17266_29298_19)
+-    [Chapter 19: Inline assembly](#toc_17266_29298_20)
+-    [Appendix I: References](#toc_17266_29298_21)
 
 # Linux kernel coding style
 
@@ -26,7 +38,7 @@ and NOT read it.  Burn them, it's a great symbolic gesture.
 Anyway, here goes:
 
 
-<span id="toc_11973_18139_1"></span>
+<span id="toc_17266_29298_1"></span>
 ## Chapter 1: Indentation
 
 Tabs are 8 characters, and thus indentations are also 8 characters.
@@ -86,7 +98,7 @@ used for indentation, and the above example is deliberately broken.
 Get a decent editor and don't leave whitespace at the end of lines.
 
 
-<span id="toc_11973_18139_2"></span>
+<span id="toc_17266_29298_2"></span>
 ## Chapter 2: Breaking long lines and strings
 
 Coding style is all about readability and maintainability using commonly
@@ -103,7 +115,7 @@ with a long argument list. However, never break user-visible strings such as
 printk messages, because that breaks the ability to grep for them.
 
 
-<span id="toc_11973_18139_3"></span>
+<span id="toc_17266_29298_3"></span>
 ## Chapter 3: Placing Braces and Spaces
 
 The other issue that always comes up in C styling is the placement of
@@ -192,7 +204,7 @@ statement; in the latter case use braces in both branches:
     	otherwise();
     }
 
-<span id="toc_11973_18139_4"></span>
+<span id="toc_17266_29298_4"></span>
 ### 3.1:  Spaces
 
 Linux kernel style for use of spaces depends (mostly) on
@@ -255,7 +267,7 @@ of patches, this may make later patches in the series fail by changing their
 context lines.
 
 
-<span id="toc_11973_18139_5"></span>
+<span id="toc_17266_29298_5"></span>
 ## Chapter 4: Naming
 
 C is a Spartan language, and so should your naming be.  Unlike Modula-2
@@ -289,7 +301,7 @@ problem, which is called the function-growth-hormone-imbalance syndrome.
 See chapter 6 (Functions).
 
 
-<span id="toc_11973_18139_6"></span>
+<span id="toc_17266_29298_6"></span>
 ## Chapter 5: Typedefs
 
 Please don't use things like "vps_t".
@@ -366,7 +378,7 @@ In general, a pointer, or a struct that has elements that can reasonably
 be directly accessed should _never_ be a typedef.
 
 
-<span id="toc_11973_18139_7"></span>
+<span id="toc_17266_29298_7"></span>
 ## Chapter 6: Functions
 
 Functions should be short and sweet, and do just one thing.  They should
@@ -409,7 +421,7 @@ Although this is not required by the C language, it is preferred in Linux
 because it is a simple way to add valuable information for the reader.
 
 
-<span id="toc_11973_18139_8"></span>
+<span id="toc_17266_29298_8"></span>
 ## Chapter 7: Centralized exiting of functions
 
 Albeit deprecated by some people, the equivalent of the goto statement is
@@ -447,7 +459,7 @@ The rationale is:
         	return result;
         }
 
-<span id="toc_11973_18139_9"></span>
+<span id="toc_17266_29298_9"></span>
 ## Chapter 8: Commenting
 
 Comments are good, but there is also a danger of over-commenting.  NEVER
@@ -498,7 +510,7 @@ multiple data declarations).  This leaves you room for a small comment on each
 item, explaining its use.
 
 
-<span id="toc_11973_18139_10"></span>
+<span id="toc_17266_29298_10"></span>
 ## Chapter 9: You've made a mess of it
 
 That's OK, we all do.  You've probably been told by your long-time Unix
@@ -559,7 +571,7 @@ re-formatting you may want to take a look at the man page.  But
 remember: "indent" is not a fix for bad programming.
 
 
-<span id="toc_11973_18139_11"></span>
+<span id="toc_17266_29298_11"></span>
 ## Chapter 10: Kconfig configuration files
 
 For all of the Kconfig* configuration files throughout the source tree,
@@ -588,7 +600,7 @@ For full documentation on the configuration files, see the file
 Documentation/kbuild/kconfig-language.txt.
 
 
-<span id="toc_11973_18139_12"></span>
+<span id="toc_17266_29298_12"></span>
 ## Chapter 11: Data structures
 
 Data structures that have visibility outside the single-threaded
@@ -620,7 +632,7 @@ Remember: if another thread can find your data structure, and you don't
 have a reference count on it, you almost certainly have a bug.
 
 
-<span id="toc_11973_18139_13"></span>
+<span id="toc_17266_29298_13"></span>
 ## Chapter 12: Macros, Enums and RTL
 
 Names of macros defining constants and labels in enums are capitalized.
@@ -676,7 +688,7 @@ The cpp manual deals with macros exhaustively. The gcc internals manual also
 covers RTL which is used frequently with assembly language in the kernel.
 
 
-<span id="toc_11973_18139_14"></span>
+<span id="toc_17266_29298_14"></span>
 ## Chapter 13: Printing kernel messages
 
 Kernel developers like to be seen as literate. Do mind the spelling
@@ -703,7 +715,7 @@ A related convention uses VERBOSE_DEBUG to add dev_vdbg() messages to the
 ones already enabled by DEBUG.
 
 
-<span id="toc_11973_18139_15"></span>
+<span id="toc_17266_29298_15"></span>
 ## Chapter 14: Allocating memory
 
 The kernel provides the following general purpose memory allocators:
@@ -735,7 +747,7 @@ Both forms check for overflow on the allocation size n * sizeof(...),
 and return NULL if that occurred.
 
 
-<span id="toc_11973_18139_16"></span>
+<span id="toc_17266_29298_16"></span>
 ## Chapter 15: The inline disease
 
 There appears to be a common misperception that gcc has a magic "make me
@@ -763,7 +775,7 @@ appears outweighs the potential value of the hint that tells gcc to do
 something it would have done anyway.
 
 
-<span id="toc_11973_18139_17"></span>
+<span id="toc_17266_29298_17"></span>
 ## Chapter 16: Function return values and names
 
 Functions can return values of many different kinds, and one of the
@@ -798,7 +810,7 @@ result.  Typical examples would be functions that return pointers; they use
 NULL or the ERR_PTR mechanism to report failure.
 
 
-<span id="toc_11973_18139_18"></span>
+<span id="toc_17266_29298_18"></span>
 ## Chapter 17:  Don't re-invent the kernel macros
 
 The header file include/linux/kernel.h contains a number of macros that
@@ -817,7 +829,7 @@ need them.  Feel free to peruse that header file to see what else is already
 defined that you shouldn't reproduce in your code.
 
 
-<span id="toc_11973_18139_19"></span>
+<span id="toc_17266_29298_19"></span>
 ## Chapter 18:  Editor modelines and other cruft
 
 Some editors can interpret configuration information embedded in source files,
@@ -845,7 +857,7 @@ own custom mode, or may have some other magic method for making indentation
 work correctly.
 
 
-<span id="toc_11973_18139_20"></span>
+<span id="toc_17266_29298_20"></span>
 ## Chapter 19:  Inline assembly
 
 In architecture-specific code, you may need to use inline assembly to interface
@@ -875,7 +887,7 @@ next instruction in the assembly output:
          : /* outputs */ : /* inputs */ : /* clobbers */);
 
 
-<span id="toc_11973_18139_21"></span>
+<span id="toc_17266_29298_21"></span>
 ## Appendix I: References
 
 * [The C Programming Language, Second Edition](http://cm.bell-labs.com/cm/cs/cbook/)
