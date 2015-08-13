@@ -1,4 +1,4 @@
-> 原文: [CodingStyle](../en/CodingStyle.html "Documentation/CodingStyle")<br/>
+> 原文: [CodingStyle](https://www.kernel.org/doc/Documentation/CodingStyle "Documentation/CodingStyle")<br/>
 > 翻译: 张乐 Zhang Le <r0bertz@gentoo.org><br/>
 > 校订: 王聪 Wang Cong <xiyou.wangcong@gmail.com>; wheelz <kernel.zeng@gmail.com>;
 >       管旭东 Xudong Guan <xudong.guan@gmail.com>; Li Zefan <lizf@cn.fujitsu.com>;
