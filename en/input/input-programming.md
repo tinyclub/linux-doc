@@ -1,12 +1,12 @@
-#Programming input drivers
+# Programming input drivers
 
-##1. Creating an input device driver
+## 1. Creating an input device driver
 
-###1.0 The simplest example
+### 1.0 The simplest example
 
 Here comes a very simple example of an input device driver. The device has
-just one button and the button is accessible at i/o port BUTTON_PORT. When
-pressed or released a BUTTON_IRQ happens. The driver could look like:
+just one button and the button is accessible at i/o port `BUTTON_PORT`. When
+pressed or released a `BUTTON_IRQ` happens. The driver could look like:
 
 ```
 #include <linux/input.h>
@@ -69,12 +69,12 @@ module_init(button_init);
 module_exit(button_exit);
 ```
 
-###1.1 What the example does
+### 1.1 What the example does
 
 First it has to include the `<linux/input.h>` file, which interfaces to the
 input subsystem. This provides all the definitions needed.
 
-In the _init function, which is called either upon module load or when
+In the `_init` function, which is called either upon module load or when
 booting the kernel, it grabs the required resources (it should also check
 for the presence of the device).
 
@@ -96,7 +96,7 @@ Then the example driver registers the input device structure by calling
 	input_register_device(&button_dev);
 
 This adds the button_dev structure to linked lists of the input driver and
-calls device handler modules _connect functions to tell them a new input
+calls device handler modules `_connect` functions to tell them a new input
 device has appeared. `input_register_device()` may sleep and therefore must
 not be called from an interrupt or with a spinlock held.
 
@@ -123,7 +123,7 @@ This doesn't seem important in the one button case, but is quite important
 for for example mouse movement, where you don't want the X and Y values
 to be interpreted separately, because that'd result in a different movement.
 
-###1.2 dev->open() and dev->close()
+### 1.2 `dev->open()` and `dev->close()`
 
 In case the driver has to repeatedly poll the device, because it doesn't
 have an interrupt coming from it and the polling is too expensive to be done
@@ -163,9 +163,9 @@ to the device and that `dev->close()` is called when the very last user
 disconnects. Calls to both callbacks are serialized.
 
 The `open()` callback should return a 0 in case of success or any nonzero value
-in case of failure. The close() callback (which is void) must always succeed.
+in case of failure. The `close()` callback (which is void) must always succeed.
 
-###1.3 Basic event types
+### 1.3 Basic event types
 
 The most simple event type is EV_KEY, which is used for keys and buttons.
 It's reported to the input system via:
@@ -216,21 +216,21 @@ If you don't need absfuzz and absflat, you can set them to zero, which mean
 that the thing is precise and always returns to exactly the center position
 (if it has any).
 
-###1.4 BITS_TO_LONGS(), BIT_WORD(), BIT_MASK()
+### 1.4 `BITS_TO_LONGS()`, `BIT_WORD()`, `BIT_MASK()`
 
 These three macros from `bitops.h` help some bitfield computations:
 
-* BITS_TO_LONGS(x) - returns the length of a bitfield array in longs for x bits
-* BIT_WORD(x)	 - returns the index in the array in longs for bit x
-* BIT_MASK(x)	 - returns the index in a long for bit x
+* `BITS_TO_LONGS(x)` - returns the length of a bitfield array in longs for x bits
+* `BIT_WORD(x)`	 - returns the index in the array in longs for bit x
+* `BIT_MASK(x)`	 - returns the index in a long for bit x
 
-###1.5 The id* and name fields
+### 1.5 The `id*` and `name` fields
 
 The dev->name should be set before registering the input device by the input
 device driver. It's a string like 'Generic button device' containing a
 user friendly name of the device.
 
-The id* fields contain the bus ID (PCI, USB, ...), vendor ID and device ID
+The `id*` fields contain the bus ID (PCI, USB, ...), vendor ID and device ID
 of the device. The bus IDs are defined in input.h. The vendor and device ids
 are defined in pci_ids.h, usb_ids.h and similar include files. These fields
 should be set by the input device driver before registering it.
@@ -240,7 +240,7 @@ driver.
 
 The id and name fields can be passed to userland via the evdev interface.
 
-###1.6 The keycode, keycodemax, keycodesize fields
+### 1.6 The keycode, keycodemax, keycodesize fields
 
 These three fields should be used by input devices that have dense keymaps.
 The keycode is an array used to map from scancodes to input system keycodes.
@@ -253,13 +253,13 @@ When a device has all 3 aforementioned fields filled in, the driver may
 rely on kernel's default implementation of setting and querying keycode
 mappings.
 
-###1.7 dev->getkeycode() and dev->setkeycode()
+### 1.7 `dev->getkeycode()` and `dev->setkeycode()`
 
 `getkeycode()` and `setkeycode()` callbacks allow drivers to override default
 `keycode/keycodesize/keycodemax` mapping mechanism provided by input core
 and implement sparse keycode maps.
 
-###1.8 Key autorepeat
+### 1.8 Key autorepeat
 
 ... is simple. It is handled by the `input.c` module. Hardware autorepeat is
 not used, because it's not present in many devices and even where it is
@@ -267,12 +267,12 @@ present, it is broken sometimes (at keyboards: Toshiba notebooks). To enable
 autorepeat for your device, just set EV_REP in `dev->evbit`. All will be
 handled by the input system.
 
-###1.9 Other event types, handling output events
+### 1.9 Other event types, handling output events
 
 The other event types up to now are:
 
-* EV_LED - used for the keyboard LEDs.
-* EV_SND - used for keyboard beeps.
+* `EV_LED` - used for the keyboard LEDs.
+* `EV_SND` - used for keyboard beeps.
 
 They are very similar to for example key events, but they go in the other
 direction - from the system to the input device driver. If your input device
