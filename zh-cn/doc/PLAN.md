@@ -2090,7 +2090,7 @@
         -   todo.txt
         -   usage-model.txt
     -   digsig.txt
-    -   DMA-API-HOWTO.txt
+    -   DMA-API-HOWTO.txt(@[leviathan1995])
     -   DMA-API.txt
     -   DMA-attributes.txt
     -   dma-buf-sharing.txt
@@ -3809,3 +3809,4 @@
 [ibrother]:https://github.com/ibrother
 [dongfu8107]:https://github.com/dongfu8107
 [ggaaooppeenngg]:https://github.com/ggaaooppeenngg
+[leviathan1995]:https://github.com/Leviathan1995
