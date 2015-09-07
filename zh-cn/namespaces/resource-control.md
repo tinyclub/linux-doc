@@ -1,14 +1,14 @@
-> 原文: Documentation/namespaces/resource-control.txt
-> 
-> 翻译: [@choleraehyq](https://github.com/choleraehyq)
-> 
-> 校订: []()
+There are a lot of kinds of objects in the kernel that don't have
+individual limits or that have limits that are ineffective when a set
+of processes is allowed to switch user ids.  With user namespaces
+enabled in a kernel for people who don't trust their users or their
+users programs to play nice this problems becomes more acute.
 
-在内核中，有许多这样的资源：它们或者没有独立的限制额度，或者在一个进程集合被允许切换用户 ID 时限制额度会失效。
+Therefore it is recommended that memory control groups be enabled in
+kernels that enable user namespaces, and it is further recommended
+that userspace configure memory control groups to limit how much
+memory user's they don't trust to play nice can use.
 
-因为不信任用户或用户程序而在内核开启用户命名空间功能之后，这个问题会变得更加严重。
- 
-因此我们建议，启用了用户命名空间功能的内核应当同时启用内存控制组功能。另外我们还建议，用户空间应当设置内存控制组来限制那些不可信的用户所能使用的内存大小。
-
-内存控制组可以通过安装 `libcgroup` 来设置。在大多数发行版上，可以通过编辑 `/etc/cgrules.conf` ,
- `/etc/cgconfig.conf` 以及配置 `libpam-cgroup` 来安装 `libcgroup` 。
+Memory control groups can be configured by installing the `libcgroup`
+package present on most distros editing `/etc/cgrules.conf`,
+`/etc/cgconfig.conf` and setting up `libpam-cgroup`.
