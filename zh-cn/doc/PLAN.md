@@ -2979,8 +2979,8 @@
         -   nand_ecc.txt
         -   spi-nor.txt
     -   namespaces
-        -   compatibility-list.txt
-        -   resource-control.txt
+        -   compatibility-list.txt(@[choleraehyq])
+        -   resource-control.txt(@[choleraehyq])
     -   netlabel
         -   00-INDEX
         -   cipso_ipv4.txt
@@ -3810,3 +3810,4 @@
 [dongfu8107]:https://github.com/dongfu8107
 [ggaaooppeenngg]:https://github.com/ggaaooppeenngg
 [leviathan1995]:https://github.com/Leviathan1995
+[choleraehyq]:https://github.com/choleraehyq
