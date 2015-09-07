@@ -2090,7 +2090,7 @@
         -   todo.txt
         -   usage-model.txt
     -   digsig.txt
-    -   DMA-API-HOWTO.txt
+    -   DMA-API-HOWTO.txt(@[leviathan1995])
     -   DMA-API.txt
     -   DMA-attributes.txt
     -   dma-buf-sharing.txt
@@ -2979,8 +2979,8 @@
         -   nand_ecc.txt
         -   spi-nor.txt
     -   namespaces
-        -   compatibility-list.txt
-        -   resource-control.txt
+        -   compatibility-list.txt(@[choleraehyq])
+        -   resource-control.txt(@[choleraehyq])
     -   netlabel
         -   00-INDEX
         -   cipso_ipv4.txt
@@ -3809,3 +3809,5 @@
 [ibrother]:https://github.com/ibrother
 [dongfu8107]:https://github.com/dongfu8107
 [ggaaooppeenngg]:https://github.com/ggaaooppeenngg
+[leviathan1995]:https://github.com/Leviathan1995
+[choleraehyq]:https://github.com/choleraehyq
