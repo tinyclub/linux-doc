@@ -1,3 +1,8 @@
+> 原文: Documentation/namespaces/compatibility-list.txt
+> 
+> 翻译: [@choleraehyq](https://github.com/choleraehyq)
+> 
+> 校订: []()
 #	 命名空间兼容性列表
 ----------
 
