@@ -1,16 +1,10 @@
-#	Namespaces compatibility list
+#	 命名空间兼容性列表
 ----------
-This document contains the information about the problems user
 
-may have when creating tasks living in different namespaces.
+这个文档包含了用户在创建跨命名空间的任务时可能出现的问题相关的信息。
 
+这有一个概要。这张表格展示了一些已知的问题，当任务本身处于某种命名空间（横行）而需要共享另一种命名空间（竖列）时会出现。
 
-
-Here's the summary. This matrix shows the known problems, that
-
-occur when tasks share some namespace (the columns) while living
-
-in different other namespaces (the rows):
   X |UTS | IPC | VFS | PID | User | Net
 ----|----|-----|-----|-----|------|-----
 UTS |  X |     |     |     |      |
@@ -20,49 +14,15 @@ PID |    | 1   | 1   |  X  |      |
 User|    | 2   | 2   |     |  X   |
 Net |    |     |     |     |      |  X
 
+1. IPC 和 PID 命名空间都会提供用于索引内核中对象的 ID 。 例如信号量的 IPCID 和 进程组的 pid。
 
+在这两种情况下，任务不应当将这个 ID 通过共享文件系统或者进程间共享内存、消息队列暴露给处于其他不同命名空间中的任务。 事实上，这个   ID 只在获得它的那个命名空间中有效，在其他命名空间中它可能指向另一个不同的对象。
 
-1. Both the IPC and the PID namespaces provide IDs to address
+2. 内核应当有意地使不同用户命名空间中相同的用户 ID 从 VFS 的角度来看是不相同的。换句话来说，假设有一些文件属于某一个用户命名空间中的用户10，那么另一个用户命名空间中的用户10对这些文件不应当与前者具有相同的权限。
 
-   object inside the kernel. E.g. semaphore with IPCID or
+对于用户命名空间之间共享的 IPC 也是同样的道理。两个不同用户命名空间的用户不应当能够同时访问同一个 IPC 对象，即使他们有着相同的 UID 。
 
-   process group with pid.
-
-
-
-   In both cases, tasks shouldn't try exposing this ID to some
-
-   other task living in a different namespace via a shared filesystem
-
-   or IPC shmem/message. The fact is that this ID is only valid
-
-   within the namespace it was obtained in and may refer to some
-
-   other object in another namespace.
-
-
-
-2. Intentionally, two equal user IDs in different user namespaces
-
-   should not be equal from the VFS point of view. In other
-
-   words, user 10 in one user namespace shouldn't have the same
-
-   access permissions to files, belonging to user 10 in another
-
-   namespace.
-
-
-
-   The same is true for the IPC namespaces being shared - two users
-
-   from different user namespaces should not access the same IPC objects
-
-   even having equal UIDs.
-
-
-
-   But currently this is not so.
+但是目前内核还没有做到这些。
 
 
 
