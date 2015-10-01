@@ -1,1 +1,12 @@
-{}
+{
+    "author": "Wu Zhangjin <wuzhangjin@gmail.com>",
+    "description": "Gitbook Version of Linux Documentation",
+    "generator": "site",
+    "plugins" : [ "disqus", "google_code_prettify", "collapsible-menu", "maxiang", "livereload"],
+    "pluginsConfig": {
+        "disqus": {
+            "shortName": "tinylab"
+        }
+    },
+    "title": "Linux Kernel Documentation (Gitbook)"
+}
