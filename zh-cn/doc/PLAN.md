@@ -2979,8 +2979,8 @@
         -   nand_ecc.txt
         -   spi-nor.txt
     -   namespaces
-        -   compatibility-list.txt(@[choleraehyq])
-        -   resource-control.txt(@[choleraehyq])
+        -   compatibility-list.txt
+        -   resource-control.txt
     -   netlabel
         -   00-INDEX
         -   cipso_ipv4.txt
@@ -3343,7 +3343,7 @@
     -   security
         -   00-INDEX
         -   apparmor.txt
-        -   credentials.txt
+        -   credentials.txt (@L3w1s-L1u)
         -   IMA-templates.txt
         -   keys-ecryptfs.txt
         -   keys-request-key.txt
@@ -3810,4 +3810,4 @@
 [dongfu8107]:https://github.com/dongfu8107
 [ggaaooppeenngg]:https://github.com/ggaaooppeenngg
 [leviathan1995]:https://github.com/Leviathan1995
-[choleraehyq]:https://github.com/choleraehyq
+[L3w1s-L1u]:https://github.com/L3w1s-L1u
