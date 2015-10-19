@@ -3343,7 +3343,7 @@
     -   security
         -   00-INDEX
         -   apparmor.txt
-        -   credentials.txt
+        -   credentials.txt (@[L3w1s-L1u])
         -   IMA-templates.txt
         -   keys-ecryptfs.txt
         -   keys-request-key.txt
@@ -3811,3 +3811,4 @@
 [ggaaooppeenngg]:https://github.com/ggaaooppeenngg
 [leviathan1995]:https://github.com/Leviathan1995
 [choleraehyq]:https://github.com/choleraehyq
+[L3w1s-L1u]:https://github.com/L3w1s-L1u
