@@ -1,989 +1,804 @@
-             THE LINUX/x86 BOOT PROTOCOL
-             ---------------------------
-
-On the x86 platform, the Linux kernel uses a rather complicated boot
-convention. This has evolved partially due to historical aspects, as
-well as the desire in the early days to have the kernel itself be a
-bootable image, the complicated PC memory model and due to changed
-expectations in the PC industry caused by the effective demise of
-real-mode DOS as a mainstream operating system.
-
-Currently, the following versions of the Linux/x86 boot protocol exist.
-
-Old kernels: zImage/Image support only. Some very early kernels may not
-even support a command line.
-
-Protocol 2.00: (Kernel 1.3.73) Added bzImage and initrd support, as well
-as a formalized way to communicate between the boot loader and the
-kernel. setup.S made relocatable, although the traditional setup area
-still assumed writable.
-
-Protocol 2.01: (Kernel 1.3.76) Added a heap overrun warning.
-
-Protocol 2.02: (Kernel 2.4.0-test3-pre3) New command line protocol.
-Lower the conventional memory ceiling. No overwrite of the traditional
-setup area, thus making booting safe for systems which use the EBDA from
-SMM or 32-bit BIOS entry points. zImage deprecated but still supported.
-
-Protocol 2.03: (Kernel 2.4.18-pre1) Explicitly makes the highest
-possible initrd address available to the bootloader.
-
-Protocol 2.04: (Kernel 2.6.14) Extend the syssize field to four bytes.
-
-Protocol 2.05: (Kernel 2.6.20) Make protected mode kernel relocatable.
-Introduce relocatable\_kernel and kernel\_alignment fields.
-
-Protocol 2.06: (Kernel 2.6.22) Added a field that contains the size of
-the boot command line.
-
-Protocol 2.07: (Kernel 2.6.24) Added paravirtualised boot protocol.
-Introduced hardware\_subarch and hardware\_subarch\_data and
-KEEP\_SEGMENTS flag in load\_flags.
-
-Protocol 2.08: (Kernel 2.6.26) Added crc32 checksum and ELF format
-payload. Introduced payload\_offset and payload\_length fields to aid in
-locating the payload.
-
-Protocol 2.09: (Kernel 2.6.26) Added a field of 64-bit physical pointer
-to single linked list of struct setup\_data.
-
-Protocol 2.10: (Kernel 2.6.31) Added a protocol for relaxed alignment
-beyond the kernel\_alignment added, new init\_size and pref\_address
-fields. Added extended boot loader IDs.
-
-Protocol 2.11: (Kernel 3.6) Added a field for offset of EFI handover
-protocol entry point.
-
-Protocol 2.12: (Kernel 3.8) Added the xloadflags field and extension
-fields to struct boot\_params for loading bzImage and ramdisk above 4G
-in 64bit.
-
-\*\*\*\* MEMORY LAYOUT
-
-The traditional memory map for the kernel loader, used for Image or
-zImage kernels, typically looks like:
-
-       |                        |
-0A0000 +------------------------+ 
-       | Reserved for BIOS      | Do not use. Reserved for BIOS EBDA. 
-09A000 +------------------------+ 
-       | Command line           | 
-       | Stack/heap             | For use by the kernel real-mode code. 
-098000 +------------------------+
-       | Kernel setup           | The kernel real-mode code. 
-090200 +------------------------+ 
-       | Kernel boot sector     | The kernel legacy boot sector. 
-090000 +------------------------+ 
-       | Protected-mode kernel  | The bulk of the kernel image. 
-010000 +------------------------+ 
-       | Boot loader            | <- Boot sector entry point 0000:7C00 
-001000 +------------------------+ 
-       | Reserved for MBR/BIOS  | 
-000800 +------------------------+ 
-       | Typically used by MBR  | 
-000600 +------------------------+ 
-       | BIOS use only          | 
-000000 +------------------------+
-
-When using bzImage, the protected-mode kernel was relocated to 0x100000
-("high memory"), and the kernel real-mode block (boot sector, setup, and
-stack/heap) was made relocatable to any address between 0x10000 and end
-of low memory. Unfortunately, in protocols 2.00 and 2.01 the 0x90000+
-memory range is still used internally by the kernel; the 2.02 protocol
-resolves that problem.
-
-It is desirable to keep the "memory ceiling" -- the highest point in low
-memory touched by the boot loader -- as low as possible, since some
-newer BIOSes have begun to allocate some rather large amounts of memory,
-called the Extended BIOS Data Area, near the top of low memory. The boot
-loader should use the "INT 12h" BIOS call to verify how much low memory
-is available.
-
-Unfortunately, if INT 12h reports that the amount of memory is too low,
-there is usually nothing the boot loader can do but to report an error
-to the user. The boot loader should therefore be designed to take up as
-little space in low memory as it reasonably can. For zImage or old
-bzImage kernels, which need data written into the 0x90000 segment, the
-boot loader should make sure not to use memory above the 0x9A000 point;
-too many BIOSes will break above that point.
-
-For a modern bzImage kernel with boot protocol version \>= 2.02, a
-memory layout like the following is suggested:
-
-        ~                        ~
-        |  Protected-mode kernel |
-100000  +------------------------+ 
-        | I/O memory hole        | 
-0A0000  +------------------------+ 
-        | Reserved for BIOS      | Leave as much as possible unused \~ \~ 
-        | Command line           | (Can also be below the X+10000 mark) 
-X+10000 +------------------------+ 
-        | Stack/heap             | For use by the kernel real-mode code. 
-X+08000 +------------------------+ 
-        | Kernel setup           | The kernel real-mode code. 
-        | Kernel boot sector     | The kernel legacy boot sector. 
-      X +------------------------+ 
-        | Boot loader            |<- Boot sector entry point 0000:7C00 
- 001000 +------------------------+
-        | Reserved for MBR/BIOS  | 
- 000800 +------------------------+ 
-        | Typically used by MBR  | 
- 000600 +------------------------+ 
-        | BIOS use only          | 
-000000  +------------------------+
-
-... where the address X is as low as the design of the boot loader
-permits.
-
-\*\*\*\* THE REAL-MODE KERNEL HEADER
-
-In the following text, and anywhere in the kernel boot sequence, "a
-sector" refers to 512 bytes. It is independent of the actual sector size
-of the underlying medium.
-
-The first step in loading a Linux kernel should be to load the real-mode
-code (boot sector and setup code) and then examine the following header
-at offset 0x01f1. The real-mode code can total up to 32K, although the
-boot loader may choose to load only the first two sectors (1K) and then
-examine the bootup sector size.
-
-The header looks like:
-
-Offset Proto    Name            Meaning /Size
-
-01F1/1 ALL(1    setup\_sects    The size of the setup in sectors 
-01F2/2 ALL      root\_flags     If set, the root is mounted readonly 
-01F4/4 2.04+(2  syssize         The size of the 32-bit code in 16-byte paras 
-01F8/2 ALL      ram\_size       DO NOT USE - for bootsect.S use only 
-01FA/2 ALL      vid\_mode       Video mode control
-01FC/2 ALL      root\_dev       Default root device number 
-01FE/2 ALL      boot\_flag      0xAA55 magic number 
-0200/2 2.00+    jump            Jump instruction 
-0202/4 2.00+    header          Magic signature "HdrS" 
-0206/2 2.00+    version         Boot protocol version supported 
-0208/4 2.00+    realmode\_swtch Boot loader hook (see below)
-020C/2 2.00+    start\_sys\_seg The load-low segment (0x1000) (obsolete)
-020E/2 2.00+    kernel\_version Pointer to kernel version string 
-0210/1 2.00+    type\_of\_loader Boot loader identifier 
-0211/1 2.00+    loadflags       Boot protocol option flags 
-0212/2 2.00+    setup\_move\_size Move to high memory size (used with hooks) 
-0214/4 2.00+    code32\_start   Boot loader hook (see below) 
-0218/4 2.00+    ramdisk\_image  initrd load address (set by boot loader) 
-021C/4 2.00+    ramdisk\_size   initrd size (set by boot loader)
-0220/4 2.00+    bootsect\_kludge DO NOT USE - for bootsect.S use only
-0224/2 2.01+    heap\_end\_ptr  Free memory after setup end 
-0226/1 2.02+(3  ext\_loader\_ver Extended boot loader version 
-0227/1 2.02+(3  ext\_loader\_type Extended boot loader ID 
-0228/4 2.02+    cmd\_line\_ptr  32-bit pointer to the kernel command line 
-022C/4 2.03+    initrd\_addr\_max Highest legal initrd address 
-0230/4 2.05+    kernel\_alignment Physical addr alignment required for kernel 
-0234/1 2.05+    relocatable\_kernel Whether kernel is relocatable or not 
-0235/1 2.10+    min\_alignment Minimum alignment, as a power of two 
-0236/2 2.12+    xloadflags Boot protocol option flags 
-0238/4 2.06+    cmdline\_size   Maximum size of the kernel command line 
-023C/4 2.07+    hardware\_subarch Hardware subarchitecture
-0240/8 2.07+    hardware\_subarch\_data Subarchitecture-specific data
-0248/4 2.08+    payload\_offset Offset of kernel payload 
-024C/4 2.08+    payload\_length Length of kernel payload 
-0250/8 2.09+    setup\_data     64-bit physical pointer to linked list of struct setup\_data 
-0258/8 2.10+    pref\_address   Preferred loading address 
-0260/4 2.10+    init\_size      Linear memory required during initialization 
-0264/4 2.11+    handover\_offset Offset of handover entry point
-
-(1) For backwards compatibility, if the setup\_sects field contains 0,
-    the real value is 4.
-
-(2) For boot protocol prior to 2.04, the upper two bytes of the syssize
-    field are unusable, which means the size of a bzImage kernel cannot
-    be determined.
-
-(3) Ignored, but safe to set, for boot protocols 2.02-2.09.
-
-If the "HdrS" (0x53726448) magic number is not found at offset 0x202,
-the boot protocol version is "old". Loading an old kernel, the following
-parameters should be assumed:
-
-    Image type = zImage
-    initrd not supported
-    Real-mode kernel must be located at 0x90000.
-
-Otherwise, the "version" field contains the protocol version, e.g.
-protocol version 2.01 will contain 0x0201 in this field. When setting
-fields in the header, you must make sure only to set fields supported by
-the protocol version in use.
-
-\*\*\*\* DETAILS OF HEADER FIELDS
-
-For each field, some are information from the kernel to the bootloader
-("read"), some are expected to be filled out by the bootloader
-("write"), and some are expected to be read and modified by the
-bootloader ("modify").
-
-All general purpose boot loaders should write the fields marked
-(obligatory). Boot loaders who want to load the kernel at a nonstandard
-address should fill in the fields marked (reloc); other boot loaders can
-ignore those fields.
-
-The byte order of all fields is littleendian (this is x86, after all.)
-
-Field name: setup\_sects Type: read Offset/size: 0x1f1/1 Protocol: ALL
-
-The size of the setup code in 512-byte sectors. If this field is 0, the
-real value is 4. The real-mode code consists of the boot sector (always
-one 512-byte sector) plus the setup code.
-
-Field name: root\_flags Type: modify (optional) Offset/size: 0x1f2/2
-Protocol: ALL
-
-If this field is nonzero, the root defaults to readonly. The use of this
-field is deprecated; use the "ro" or "rw" options on the command line
-instead.
-
-Field name: syssize Type: read Offset/size: 0x1f4/4 (protocol 2.04+)
-0x1f4/2 (protocol ALL) Protocol: 2.04+
-
-The size of the protected-mode code in units of 16-byte paragraphs. For
-protocol versions older than 2.04 this field is only two bytes wide, and
-therefore cannot be trusted for the size of a kernel if the LOAD\_HIGH
-flag is set.
-
-Field name: ram\_size Type: kernel internal Offset/size: 0x1f8/2
-Protocol: ALL
-
-This field is obsolete.
-
-Field name: vid\_mode Type: modify (obligatory) Offset/size: 0x1fa/2
-
-Please see the section on SPECIAL COMMAND LINE OPTIONS.
-
-Field name: root\_dev Type: modify (optional) Offset/size: 0x1fc/2
-Protocol: ALL
-
-The default root device device number. The use of this field is
-deprecated, use the "root=" option on the command line instead.
-
-Field name: boot\_flag Type: read Offset/size: 0x1fe/2 Protocol: ALL
-
-Contains 0xAA55. This is the closest thing old Linux kernels have to a
-magic number.
-
-Field name: jump Type: read Offset/size: 0x200/2 Protocol: 2.00+
-
-Contains an x86 jump instruction, 0xEB followed by a signed offset
-relative to byte 0x202. This can be used to determine the size of the
-header.
-
-Field name: header Type: read Offset/size: 0x202/4 Protocol: 2.00+
-
-Contains the magic number "HdrS" (0x53726448).
-
-Field name: version Type: read Offset/size: 0x206/2 Protocol: 2.00+
-
-Contains the boot protocol version, in (major \<\< 8)+minor format, e.g.
-0x0204 for version 2.04, and 0x0a11 for a hypothetical version 10.17.
-
-Field name: realmode\_swtch Type: modify (optional) Offset/size: 0x208/4
-Protocol: 2.00+
-
-Boot loader hook (see ADVANCED BOOT LOADER HOOKS below.)
-
-Field name: start\_sys\_seg Type: read Offset/size: 0x20c/2 Protocol:
-2.00+
-
-The load low segment (0x1000). Obsolete.
-
-Field name: kernel\_version Type: read Offset/size: 0x20e/2 Protocol:
-2.00+
-
-If set to a nonzero value, contains a pointer to a NUL-terminated
-human-readable kernel version number string, less 0x200. This can be
-used to display the kernel version to the user. This value should be
-less than (0x200\*setup\_sects).
-
-For example, if this value is set to 0x1c00, the kernel version number
-string can be found at offset 0x1e00 in the kernel file. This is a valid
-value if and only if the "setup\_sects" field contains the value 15 or
-higher, as:
-
-    0x1c00  < 15*0x200 (= 0x1e00) but
-    0x1c00 >= 14*0x200 (= 0x1c00)
-
-    0x1c00 >> 9 = 14, so the minimum value for setup_secs is 15.
-
-Field name: type\_of\_loader Type: write (obligatory) Offset/size:
-0x210/1 Protocol: 2.00+
-
-If your boot loader has an assigned id (see table below), enter 0xTV
-here, where T is an identifier for the boot loader and V is a version
-number. Otherwise, enter 0xFF here.
-
-For boot loader IDs above T = 0xD, write T = 0xE to this field and write
-the extended ID minus 0x10 to the ext\_loader\_type field. Similarly,
-the ext\_loader\_ver field can be used to provide more than four bits
-for the bootloader version.
-
-For example, for T = 0x15, V = 0x234, write:
-
-type\_of\_loader \<- 0xE4 ext\_loader\_type \<- 0x05 ext\_loader\_ver
-\<- 0x23
-
-Assigned boot loader ids (hexadecimal):
-
-    0  LILO         (0x00 reserved for pre-2.00 bootloader)
-    1  Loadlin
-    2  bootsect-loader  (0x20, all other values reserved)
-    3  Syslinux
-    4  Etherboot/gPXE/iPXE
-    5  ELILO
-    7  GRUB
-    8  U-Boot
-    9  Xen
-    A  Gujin
-    B  Qemu
-    C  Arcturus Networks uCbootloader
-    D  kexec-tools
-    E  Extended     (see ext_loader_type)
-    F  Special      (0xFF = undefined)
-       10  Reserved
-       11  Minimal Linux Bootloader <http://sebastian-plotz.blogspot.de>
-       12  OVMF UEFI virtualization stack
+原文: Documentation/x86/boot.txt
+翻译：@Andor
+校订：
+
+#x86 启动协议 #
+
+在x86平台上，linux内核使用一个非常复杂的启动协议。这个演变部分是由于历史原因，以及在linux内核早期，为了使内核镜像成为一个自启动镜像而使用的那些算法，还有造成了复杂的计算机内存模型，再加上由于对计算机工业的期望的改变，造成了作为主流实模式操作系统Dos的消亡。
+
+当下，现存的Linux/86版本的启动协议：
+
+**Old kernels**:    
+>只支持zImage/Image了。许多非常早期的内核甚至都不支持命令行。
+
+**Protocol 2.00**:	
+>(内核版本 1.3.73) 增加了对bzImage和initrd的支持，作为一个正式的bootloader和kernel之间交流的方式。setup.S被设定为可重定位，尽管传统的setup区域仍然假定可写入。
+
+**Protocol 2.01**:	
+>(Kernel 1.3.76) 增加了一个堆溢出警告。
+
+**Protocol 2.02**:	
+>(Kernel 2.4.0-test3-pre3) 增加新命令行协议。把传统内存上限调低。setup区域不可以写入，这样做是针对使用EBDA（extended Bios Data Area）或者32位的BIOS入口更加安全(下边讲到原因)。zImage被废弃了，但是仍然是支持的。
+>
+
+**Protocol 2.03**:	
+>(Kernel 2.4.18-pre1) 明确的使竟可能高initrd地址对bootloader可见。
+
+**Protocol 2.04**:	
+>(Kernel 2.6.14) 扩展了 syssize 域到4个字节.
+
+**Protocol 2.05**:	
+>(Kernel 2.6.20) 使保护模式的内核可重定位。引入relocatable_kernel和kernel\_alignment域。
+
+**Protocol 2.06**:	
+>(Kernel 2.6.22) 加入包含引导命令行的大小的字段。
+
+**Protocol 2.07**:	
+>(Kernel 2.6.24) 增加了半虚拟化引导协议。引入hardware\_subarch和hardware\_subarch_data，并且在load\_flags中引入KEEP\_SEGMENTS标签。
+
+**Protocol 2.08**:	
+>(Kernel 2.6.26) 增加了crc32校验，并且对elf格式开始支持。引入payload\_offset和payload\_length字段以帮助定位所述有效载荷(指elf载荷--payload)。
+
+**Protocol 2.09**:	
+>(Kernel 2.6.26) 在单链表setup_data结构体中增加一个64物理指针。
+
+**Protocol 2.10**:	
+>(Kernel 2.6.31) 在协议中增加一个除了kernel\_alignment区域以外的非严格，增加了新的init\_size和pref_address字段。增加了扩展的引导装载程序的ID。
+
+**Protocol 2.11**:	
+>(Kernel 3.6) 增加了一个字段用来记录EFI切换协议的入口点偏移。
+
+Protocol 2.12:	
+>(Kernel 3.8) 在结构体boot_params中增加了xloadflags和一些扩展字段，用来在64位系统中加载bzImage和ramdisk。
+
+## 内存布局 -- MEMORY LAYOUT##
+传统的针对内核加载器的内存映射，用来加载Image或者zImage内核，通常如下：
+
+			|			        	 | 
+	0A0000	+------------------------+ 
+			|  Reserved for BIOS	 |	Do not use.  Reserved for BIOS EBDA. 
+	09A000	+------------------------+ 
+			|  Command line		 	 |
+			|  Stack/heap		 	 |	For use by the kernel real-mode code. 
+	098000	+------------------------+ 
+			|  Kernel setup		 	 |	The kernel real-mode code. 
+	090200	+------------------------+ 
+			|  Kernel boot sector	 |	The kernel legacy boot sector. 
+	090000	+------------------------+ 
+			|  Protected-mode kernel |	The bulk of the kernel image. 
+	010000	+------------------------+ 
+			|  Boot loader		 	 |	<- Boot sector entry point 0000:7C00 
+	001000	+------------------------+ 
+			|  Reserved for MBR/BIOS | 
+	000800	+------------------------+ 
+			|  Typically used by MBR | 
+	000600	+------------------------+ 
+			|  BIOS use only	 	 | 
+	000000	+------------------------+
+
+当使用bzImage的时候，保护模式的内核被重定位到0x100000("high memory"),实模式内核块(boot sector, setup,和stack/heap)被重定位到0x10000和低端内存之间的任何区域。不幸的是，在协议2.00和2.010x，高于90000的内存范围仍然是由内核使用（内部使用）; 2.02协议解决了这个问题。
+
+为了保证“memory ceiling”--在低端内存区域被bootloader所染指的内存上限--尽可能的低，因为一些新的BIOS已经开始分配一些相当大数量的内存，称为EBDA，靠近低内存的顶部。引导装载程序应该使用“INT12H”BIOS调用来验证有多少低内存可用。
+
+不幸的是，如果INT12H报告说，存储器的量太低时，通常引导加载程序，仅仅报告一个错误给用户，其他什么都不做。所以，引导装载程序应被设计为占用尽可能少的空间。对于的zImage或老的bzImage内核，这就需要写进0x90000段，引导加载程序应该确保不使用超过0x9A000的内存地址;太多的BIOS不遵守这个规则了。
+
+对于一个现代化的bzImage内核启动协议，版本>=2.02，内存布局建议如下：
+	
+			~                        ~ 
+			|  Protected-mode kernel | 
+	100000  +------------------------+ 
+			|  I/O memory hole	 	 | 
+	0A0000	+------------------------+ 
+			|  Reserved for BIOS	 |	Leave as much as possible unused
+			~                        ~
+			|  Command line		 	 |	(Can also be below the X+10000 mark) 
+	X+10000	+------------------------+ 
+			|  Stack/heap		 	 |	For use by the kernel real-mode code. 
+	X+08000	+------------------------+ 
+			|  Kernel setup		 	 |	The kernel real-mode code.
+			|  Kernel boot sector	 |	The kernel legacy boot sector. 
+	X       +------------------------+ 
+			|  Boot loader		 	 |	<- Boot sector entry point 0000:7C00 
+	001000	+------------------------+ 
+			|  Reserved for MBR/BIOS | 
+	000800	+------------------------+ 
+			|  Typically used by MBR | 
+	000600	+------------------------+ 
+			|  BIOS use only	 	 | 
+	000000	+------------------------+
+
+这里的地址X是尽可能的低，低到bootloader能容忍的最低限度。
+
+## 实模式内核头 -- THE REAL-MODE KERNEL HEADER##
+
+在接下来的文本中，以及内核引导序列的任何地方，“扇区”指的是512字节。它是独立于底层介质的实际扇区大小。
+
+在装载Linux内核的第一步应该是加载实模式代码（boot sector和setup的代码），然后检查头在偏移0x01f1处的头。实模式代码可以总额高达32K，虽然引导加载程序可能只加载前两个扇区（1K），然后检查启动扇区大小。
+
+代码头如下：
+
+	Offset	Proto	Name			Meaning 
+	/Size
+	01F1/1	ALL(1	setup_sects		The size of the setup in sectors 
+	01F2/2	ALL		root_flags		If set, the root is mounted readonly 
+	01F4/4	2.04+(2	syssize			The size of the 32-bit code in 16-byte paras 
+	01F8/2	ALL		ram_size		DO NOT USE - for bootsect.S use only 
+	01FA/2	ALL		vid_mode		Video mode control 
+	01FC/2	ALL		root_dev		Default root device number 
+	01FE/2	ALL		boot_flag		0xAA55 magic number 
+	0200/2	2.00+	jump			Jump instruction 
+	0202/4	2.00+	header			Magic signature "HdrS" 
+	0206/2	2.00+	version			Boot protocol version supported 
+	0208/4	2.00+	realmode_swtch	Boot loader hook (see below) 
+	020C/2	2.00+	start_sys_seg	The load-low segment (0x1000) (obsolete) 
+	020E/2	2.00+	kernel_version	Pointer to kernel version string 
+	0210/1	2.00+	type_of_loader	Boot loader identifier 
+	0211/1	2.00+	loadflags		Boot protocol option flags 
+	0212/2	2.00+	setup_move_size	Move to high memory size (used with hooks) 
+	0214/4	2.00+	code32_start	Boot loader hook (see below) 
+	0218/4	2.00+	ramdisk_image	initrd load address (set by boot loader) 
+	021C/4	2.00+	ramdisk_size	initrd size (set by boot loader) 
+	0220/4	2.00+	bootsect_kludge	DO NOT USE - for bootsect.S use only 
+	0224/2	2.01+	heap_end_ptr	Free memory after setup end 
+	0226/1	2.02+(3 ext_loader_ver	Extended boot loader version 
+	0227/1	2.02+(3	ext_loader_type	Extended boot loader ID 
+	0228/4	2.02+	cmd_line_ptr	32-bit pointer to the kernel command line 
+	022C/4	2.03+	initrd_addr_max	Highest legal initrd address 
+	0230/4	2.05+	kernel_alignment Physical addr alignment required for kernel 
+	0234/1	2.05+	relocatable_kernel Whether kernel is relocatable or not 
+	0235/1	2.10+	min_alignment	Minimum alignment, as a power of two 
+	0236/2	2.12+	xloadflags		Boot protocol option flags 
+	0238/4	2.06+	cmdline_size	Maximum size of the kernel command line 
+	023C/4	2.07+	hardware_subarch Hardware subarchitecture 
+	0240/8	2.07+	hardware_subarch_data Subarchitecture-specific data 
+	0248/4	2.08+	payload_offset	Offset of kernel payload 
+	024C/4	2.08+	payload_length	Length of kernel payload 
+	0250/8	2.09+	setup_data	64-bit physical pointer to linked list of struct setup_data 
+	0258/8	2.10+	pref_address	Preferred loading address 
+	0260/4	2.10+	init_size	Linear memory required during initialization 
+	0264/4	2.11+	handover_offset	Offset of handover entry point
+
+（1）为了向后兼容，如果setup_sects字段包含0，它真正的值是4。
+
+（2）为了兼容2.04引导协议，syssize上两个字节字段不可用，这意味着一个bzImage的核的尺寸不能确定。
+
+（3）忽略，但可安全设置，为引导协议2.02-2.09。
+
+如果"HdrS"(0x5326448)幻数并没有在0x202偏移处找到，那么这个启动协议版本就是一个"旧版本"。加载一个老的内核版本，下面的参数应该被设置：
+
+	Image type = zImage initrd not supported
+	Real-mode kernel must be located at 0x90000.
+
+否则，“version”字段包含协议版本，例如协议版本2.01将包含0x0201在这个字段。当在头字段设置了字段，你必须确保被使用的版本是该字段设置的值。
 
-Please contact <hpa@zytor.com> if you need a bootloader ID value
-assigned.
+## 头字段详细分析 -- DETAILS OF HEADER FIELDS##
 
-Field name: loadflags Type: modify (obligatory) Offset/size: 0x211/1
-Protocol: 2.00+
+对于每一个字段，有些是从内核到bootloader（“读”），有些的信息被bootloader填充（“写”），其他一些被bootloader读并且修改（“修改“）。
 
-This field is a bitmask.
+所有通用引导装载程序应该写的字段会被标记（强制性的）。那些bootloader谁想要把加载内核在一个非标准的地址，应填写相应的引导加载程序标记（RELOC）;其他的引导加载程序可以忽略这些字段。
 
-Bit 0 (read): LOADED\_HIGH - If 0, the protected-mode code is loaded at
-0x10000. - If 1, the protected-mode code is loaded at 0x100000.
+所有字段的字节顺序为littleendian（这毕竟是86的）。
 
-Bit 5 (write): QUIET\_FLAG - If 0, print early messages. - If 1,
-suppress early messages. This requests to the kernel (decompressor and
-early kernel) to not write early messages that require accessing the
-display hardware directly.
+	Field name:		setup_sects 
+	Type:			read 
+	Offset/size:	0x1f1/1 
+	Protocol:		ALL
 
-Bit 6 (write): KEEP\_SEGMENTS Protocol: 2.07+ - If 0, reload the segment
-registers in the 32bit entry point. - If 1, do not reload the segment
-registers in the 32bit entry point. Assume that %cs %ds %ss %es are all
-set to flat segments with a base of 0 (or the equivalent for their
-environment).
+上述字段是在512字节扇区的安装程序代码的大小。如果该字段为0，真正的值是4，实模式代码由引导扇区（总有一个512字节扇区）加上设置代码。
 
-Bit 7 (write): CAN\_USE\_HEAP Set this bit to 1 to indicate that the
-value entered in the heap\_end\_ptr is valid. If this field is clear,
-some setup code functionality will be disabled.
+	Field name:	 	root_flags 
+	Type:		 	modify (optional) 
+	Offset/size:	0x1f2/2 
+	Protocol:	 	ALL
 
-Field name: setup\_move\_size Type: modify (obligatory) Offset/size:
-0x212/2 Protocol: 2.00-2.01
+如果该字段为非零，根默认为只读。该领域已被弃用;使用命令行上的“ro”或“rw”选项来代替。
 
-When using protocol 2.00 or 2.01, if the real mode kernel is not loaded
-at 0x90000, it gets moved there later in the loading sequence. Fill in
-this field if you want additional data (such as the kernel command line)
-moved in addition to the real-mode kernel itself.
+	Field name:		syssize 
+	Type:			read 
+	Offset/size:	0x1f4/4 (protocol 2.04+) 0x1f4/2 (protocol ALL) 
+	Protocol:		2.04+
 
-The unit is bytes starting with the beginning of the boot sector.
-
-This field is can be ignored when the protocol is 2.02 or higher, or if
-the real-mode code is loaded at 0x90000.
+上述是保护模式的代码的大小，以16字节为段单元的大小。对于早于2.04版本的协议这一领域只有两个字节大小的，如果LOAD_HIGH标志被设置，那么该内核的大小的值不能使用。
 
-Field name: code32\_start Type: modify (optional, reloc) Offset/size:
-0x214/4 Protocol: 2.00+
+	Field name:		ram_size 
+	Type:			kernel internal 
+	Offset/size:	0x1f8/2 
+	Protocol:		ALL
+
+这个值已经非常陈旧了。
+
+Field name:	vid_mode 
+Type:		modify (obligatory) 
+Offset/size:	0x1fa/2
+
+请看"SPECIAL COMMAND LINE OPTIONS"章节。
+
+	Field name:		root_dev 
+	Type:			modify (optional) 
+	Offset/size:	0x1fc/2 
+	Protocol:		ALL
+
+默认的根设备的设备数量。该字段已被弃用，被"root="命令行选项代替。
+
+	Field name:		boot_flag 
+	Type:			read 
+	Offset/size:	0x1fe/2 
+	Protocol:		ALL
+
+包含0xAA55。这是linux中最古老的一个幻数。
+
+	Field name:		jump 
+	Type:			read 
+	Offset/size:	0x200/2 
+	Protocol:		2.00+
+
+包含一个x86跳转指令，在0xEB后跟一个带符号偏移量字节数是0x202。这可以被用于确定标头的大小。
+
+	Field name:		header 
+	Type:			read 
+	Offset/size:	0x202/4 
+	Protocol:		2.00+
+
+包含幻数"HdrS"(0x53726448)。
+
+	Field name:		version 
+	Type:			read 
+	Offset/size:	0x206/2 
+	Protocol:		2.00+
+
+包含引导协议版本，在（major << 8）+ minor，例如：0x0204的版本2.04，0x0a11一个假的版本，表示10.17。
+
+	Field name:		realmode_swtch 
+	Type:			modify (optional) 
+	Offset/size:	0x208/4 
+	Protocol:		2.00+
+
+bootloader的hook，请看下面的ADVANCED BOOT LOADER HOOKS章节。
+
+	Field name:		start_sys_seg 
+	Type:			read 
+	Offset/size:	0x20c/2 
+	Protocol:		2.00+
+
+加载低段(0x1000),弃用。
 
-The address to jump to in protected mode. This defaults to the load
-address of the kernel, and can be used by the boot loader to determine
-the proper load address.
+	Field name:		kernel_version 
+	Type:			read 
+	Offset/size:	0x20e/2 
+	Protocol:		2.00+
 
-This field can be modified for two purposes:
-
-1.  as a boot loader hook (see ADVANCED BOOT LOADER HOOKS below.)
+如果设置为非零值，包含一个指向一个NULL结尾的人类可读的内核版本号字符串。这可以用来显示内核版本给用户。此值应小于（为0x200* setup_sects）。
 
-2.  if a bootloader which does not install a hook loads a relocatable
-    kernel at a nonstandard address it will have to modify this field to
-    point to the load address.
+例如，如果这个值被设置为0x1c00，内核版本号码串可以在内核文件偏移0x1e00找到。这是有效的值，当且仅当“setup_sects”字段包含值15或更高，如：
 
-Field name: ramdisk\_image Type: write (obligatory) Offset/size: 0x218/4
-Protocol: 2.00+
+	0x1c00  < 15\*0x200 (= 0x1e00) but 
+	0x1c00 >= 14\*0x200 (= 0x1c00)
+	0x1c00 >> 9 = 14
+所以setup_sects最小值是15。
 
-The 32-bit linear address of the initial ramdisk or ramfs. Leave at zero
-if there is no initial ramdisk/ramfs.
+	Field name:		type_of_loader 
+	Type:			write (obligatory) 
+	Offset/size:	0x210/1 
+	Protocol:		2.00+
 
-Field name: ramdisk\_size Type: write (obligatory) Offset/size: 0x21c/4
-Protocol: 2.00+
+如果引导加载程序有一个分配的标识（见下表），例如0xTV，其中T是一个bootloader的标识符，V是一个版本号。如果不指派，就是0xFF的。
 
-Size of the initial ramdisk or ramfs. Leave at zero if there is no
-initial ramdisk/ramfs.
+对于上述引导加载程序的ID，如果T=0xD，那么就给这个字段赋值为T=0xE，将扩展ID的值减去0x10赋给ext\_loader\_type字段。同样，ext\_loader_ver字段可用于提供超过4个位的bootloader版本。
 
-Field name: bootsect\_kludge Type: kernel internal Offset/size: 0x220/4
-Protocol: 2.00+
+例如：T = 0x15, V = 0x234,就输入如下
 
-This field is obsolete.
+	type_of_loader  <- 0xE4 
+	ext_loader_type <- 0x05
+	ext_loader_ver  <- 0x23
 
-Field name: heap\_end\_ptr Type: write (obligatory) Offset/size: 0x224/2
-Protocol: 2.01+
+指派的引导加载程序id(16进制)：
 
-Set this field to the offset (from the beginning of the real-mode code)
-of the end of the setup stack/heap, minus 0x0200.
+	0  LILO			(0x00 reserved for pre-2.00 bootloader) 
+	1  Loadlin 
+	2  bootsect-loader	(0x20, all other values reserved) 
+	3  Syslinux 
+	4  Etherboot/gPXE/iPXE 
+	5  ELILO 
+	7  GRUB 
+	8  U-Boot 
+	9  Xen
+	A  Gujin
+	B  Qemu
+	C  Arcturus Networks uCbootloader
+	D  kexec-tools
+	E  Extended		(see ext_loader_type)
+	F  Special		(0xFF = undefined) 
+	10  Reserved 
+	11  Minimal Linux Bootloader <http://sebastian-plotz.blogspot.de> 
+	12  OVMF UEFI virtualization stack
 
-Field name: ext\_loader\_ver Type: write (optional) Offset/size: 0x226/1
-Protocol: 2.02+
+如果你需要分配一个bootloader的id，那么请联系<hpa@zytor.com>。
 
-This field is used as an extension of the version number in the
-type\_of\_loader field. The total version number is considered to be
-(type\_of\_loader & 0x0f) + (ext\_loader\_ver \<\< 4).
+	Field name:		loadflags 
+	Type:			modify (obligatory) 
+	Offset/size:	0x211/1 
+	Protocol:		2.00+
 
-The use of this field is boot loader specific. If not written, it is
-zero.
+这个字段是一个位掩码。
 
-Kernels prior to 2.6.31 did not recognize this field, but it is safe to
-write for protocol version 2.02 or higher.
+	Bit 0 (read):	LOADED_HIGH
+		- 如果 0, 保护模式的代码被加载在 0x10000.
+		- 如果 1, 保护模式的代码被加载在 0x100000.
+	Bit 5 (write): QUIET_FLAG
+		- 如果 0, 打印启动前期信息.
+		- 如果 1, 禁止早期的消息。这就要求内核（解压缩工具和早期内核）不编写直接访问显示硬件的早期消息。
+	Bit 6 (write): KEEP_SEGMENTS 
+		Protocol: 2.07+
+		- 如果 0, 重新加载32位入口点段寄存器。
+		- 如果 1, 不重新加载32位入口点段寄存器。假定％cs％的ds％ss％es都设置为平坦段并且基质是0（或相当于其环境来说是0）。
+	Bit 7 (write): CAN_USE_HEAP 
+	设置该位为1，表示在heap_end_ptr输入的值是有效的。如果该字段被清空，许多setup代码的功能将被禁用。
 
-Field name: ext\_loader\_type Type: write (obligatory if
-(type\_of\_loader & 0xf0) == 0xe0) Offset/size: 0x227/1 Protocol: 2.02+
+--
 
-This field is used as an extension of the type number in
-type\_of\_loader field. If the type in type\_of\_loader is 0xE, then the
-actual type is (ext\_loader\_type + 0x10).
+	Field name:		setup_move_size 
+	Type:			modify (obligatory) 
+	Offset/size:	0x212/2 
+	Protocol:		2.00-2.01
 
-This field is ignored if the type in type\_of\_loader is not 0xE.
+当使用协议2.00或2.01，如果实模式内核没有加载在0x90000，它被移到那里在接下来的加载步骤。如果你想要添加更多的数据到实模式内核（如内核命令行）就填写该字段。
 
-Kernels prior to 2.6.31 did not recognize this field, but it is safe to
-write for protocol version 2.02 or higher.
+单位是字节，起始于引导扇区头。
 
-Field name: cmd\_line\_ptr Type: write (obligatory) Offset/size: 0x228/4
-Protocol: 2.02+
+当协议是2.02或更高，或者如果实模式代码加载在0x90000此字段可以被忽略。
 
-Set this field to the linear address of the kernel command line. The
-kernel command line can be located anywhere between the end of the setup
-heap and 0xA0000; it does not have to be located in the same 64K segment
-as the real-mode code itself.
+	Field name:		code32_start 
+	Type:			modify (optional, reloc) 
+	Offset/size:	0x214/4 
+	Protocol:		2.00+
 
-Fill in this field even if your boot loader does not support a command
-line, in which case you can point this to an empty string (or better
-yet, to the string "auto".) If this field is left at zero, the kernel
-will assume that your boot loader does not support the 2.02+ protocol.
+该地址跳转到保护模式。此地址默认为内核的加载地址，并且可以被引导装载程序用来确定合适的装载地址。
 
-Field name: initrd\_addr\_max Type: read Offset/size: 0x22c/4 Protocol:
-2.03+
+修改该参数用来达到以下两个目的：
 
-The maximum address that may be occupied by the initial ramdisk/ramfs
-contents. For boot protocols 2.02 or earlier, this field is not present,
-and the maximum address is 0x37FFFFFF. (This address is defined as the
-address of the highest safe byte, so if your ramdisk is exactly 131072
-bytes long and this field is 0x37FFFFFF, you can start your ramdisk at
-0x37FE0000.)
+1. 作为引导装载程序hook（见下面的高级BOOT LOADER HOOKS章节。）
 
-Field name: kernel\_alignment Type: read/modify (reloc) Offset/size:
-0x230/4 Protocol: 2.05+ (read), 2.10+ (modify)
+2. 如果一个bootloader没有安装hook，加载了一个可以重定位内核在一个非标准地址，那么必须修改该字段指向这个加载地址。
 
-Alignment unit required by the kernel (if relocatable\_kernel is true.)
-A relocatable kernel that is loaded at an alignment incompatible with
-the value in this field will be realigned during kernel initialization.
+	Field name:	ramdisk_image 
+	Type:		write (obligatory) 
+	Offset/size:	0x218/4 
+	Protocol:	2.00+
 
-Starting with protocol version 2.10, this reflects the kernel alignment
-preferred for optimal performance; it is possible for the loader to
-modify this field to permit a lesser alignment. See the min\_alignment
-and pref\_address field below.
+初始化ramfs或者ramdisk的32线性地址。如果没有初始化ramfs或者ramdisk，那么赋值为0.
 
-Field name: relocatable\_kernel Type: read (reloc) Offset/size: 0x234/1
-Protocol: 2.05+
+	Field name:		ramdisk_size 
+	Type:			write (obligatory) 
+	Offset/size:	0x21c/4 
+	Protocol:		2.00+
 
-If this field is nonzero, the protected-mode part of the kernel can be
-loaded at any address that satisfies the kernel\_alignment field. After
-loading, the boot loader must set the code32\_start field to point to
-the loaded code, or to a boot loader hook.
+初始ramdisk或ramfs的大小。如果没有初始ramdisk/ramfs，清零。
 
-Field name: min\_alignment Type: read (reloc) Offset/size: 0x235/1
-Protocol: 2.10+
+	Field name:		bootsect_kludge 
+	Type:			kernel internal 
+	Offset/size:	0x220/4 
+	Protocol:		2.00+
 
-This field, if nonzero, indicates as a power of two the minimum
-alignment required, as opposed to preferred, by the kernel to boot. If a
-boot loader makes use of this field, it should update the
-kernel\_alignment field with the alignment unit desired; typically:
+该字段已经弃用。
 
-    kernel_alignment = 1 << min_alignment
+	Field name:		heap_end_ptr 
+	Type:			write (obligatory) 
+	Offset/size:	0x224/2 
+	Protocol:		2.01+
 
-There may be a considerable performance cost with an excessively
-misaligned kernel. Therefore, a loader should typically try each
-power-of-two alignment from kernel\_alignment down to this alignment.
+此字段为实模式代码到setup的堆栈尾部的偏移，减去0x0200。
 
-Field name: xloadflags Type: read Offset/size: 0x236/2 Protocol: 2.12+
+	Field name:		ext_loader_ver 
+	Type:			write (optional) 
+	Offset/size:	0x226/1 
+	Protocol:		2.02+
 
-This field is a bitmask.
+这个字段被用作版本号字段type_of_loader的扩展。总的版本号被认为是（type_of_loader＆为0x0F）+（ext_loader_ver<<4）。
 
-Bit 0 (read): XLF\_KERNEL\_64 - If 1, this kernel has the legacy 64-bit
-entry point at 0x200.
+使用本字段的是特定的引导加载程序。如果没有输入，它是零。
 
-Bit 1 (read): XLF\_CAN\_BE\_LOADED\_ABOVE\_4G - If 1,
-kernel/boot\_params/cmdline/ramdisk can be above 4G.
+之前的2.6.31内核不识别这个字段，但是为了保险起见协议版本为2.02或更高版本。
 
-Bit 2 (read): XLF\_EFI\_HANDOVER\_32 - If 1, the kernel supports the
-32-bit EFI handoff entry point given at handover\_offset.
+	Field name:		ext_loader_type 
+	Type:			write (obligatory if (type_of_loader & 0xf0) == 0xe0) 
+	Offset/size:	0x227/1 
+	Protocol:		2.02+
 
-Bit 3 (read): XLF\_EFI\_HANDOVER\_64 - If 1, the kernel supports the
-64-bit EFI handoff entry point given at handover\_offset + 0x200.
+这个字段被用作类型数目作为type\_of\_loader字段的扩展。如果type\_of\_loader类型值为0xE，则实际类型是（ext\_loader_type+0×10）。
 
-Bit 4 (read): XLF\_EFI\_KEXEC - If 1, the kernel supports kexec EFI boot
-with EFI runtime support.
+如果type\_of\_loader类型值非0xE，这个字段被忽略。
 
-Field name: cmdline\_size Type: read Offset/size: 0x238/4 Protocol:
-2.06+
+之前的2.6.31内核不识别该字段，但是为了保险起见协议版本为2.02或更高版本。
 
-The maximum size of the command line without the terminating zero. This
-means that the command line can contain at most cmdline\_size
-characters. With protocol version 2.05 and earlier, the maximum size was
-255.
+	Field name:		cmd_line_ptr 
+	Type:			write (obligatory) 
+	Offset/size:	0x228/4 
+	Protocol:		2.02+
 
-Field name: hardware\_subarch Type: write (optional, defaults to x86/PC)
-Offset/size: 0x23c/4 Protocol: 2.07+
+此字段设置为内核命令行的线性地址。内核命令行可以被加载在0xA0000到setup heap之间的任何地方;它不必设在与自侦同一64K实模式段代码中。
+填写该字段，即使你的引导装载程序不支持命令行，在这种情况下，你可以指向一个空字符串（更好的是指向字符串“auto”。）如果该字段置零，内核假设你的引导装载程序不支持2.02+协议。
 
-In a paravirtualized environment the hardware low level architectural
-pieces such as interrupt handling, page table handling, and accessing
-process control registers needs to be done differently.
+	Field name:		initrd_addr_max 
+	Type:			read 
+	Offset/size:	0x22c/4 
+	Protocol:		2.03+
 
-This field allows the bootloader to inform the kernel we are in one one
-of those environments.
+最大地址值被初始化ramdisk/ramfs内容占用。对启动协议2.02或者之前版本，这个字段不会出现，并且最大地址是0x37FFFFFF.(这个地址被定义为字节编码最大的安全地址，所以如果你的ramdisk真正大小是131072字节，并且这个字段是0x37FFFFFF,你可以设置你的ramdisk地址在0x37FE0000).
+	
+	Field name:		kernel_alignment 
+	Type:			read/modify (reloc) 
+	Offset/size:	0x230/4 
+	Protocol:		2.05+ (read), 2.10+ (modify)
 
-0x00000000 The default x86/PC environment 0x00000001 lguest 0x00000002
-Xen 0x00000003 Moorestown MID 0x00000004 CE4100 TV Platform
+内核需要对齐单位（如果relocatable_kernel被设置了）。一个可重定位内核如果被加载在一个不兼容的对齐方式中，那么在初始化期间会重新调整该值。
 
-Field name: hardware\_subarch\_data Type: write (subarch-dependent)
-Offset/size: 0x240/8 Protocol: 2.07+
+从协议版本2.10开始，这个值反映了内核首选对齐方式以获得最佳性能;它有可能为加载器修改该字段，以允许一个较小的对齐方式。见min\_alignment及以下pref\_address字段。
 
-A pointer to data that is specific to hardware subarch This field is
-currently unused for the default x86/PC environment, do not modify.
+	Field name:		relocatable_kernel 
+	Type:			read (reloc) 
+	Offset/size:	0x234/1 
+	Protocol:		2.05+
 
-Field name: payload\_offset Type: read Offset/size: 0x248/4 Protocol:
-2.08+
+如果该字段为非零，内核保护模式的一部分，可以被加载在满足kernel\_alignment字段的任何地址。装载后，启动引导器必须设置code32\_start字段指向被加载代码，或到引导加载器hook。
 
-If non-zero then this field contains the offset from the beginning of
-the protected-mode code to the payload.
+	Field name:		min_alignment 
+	Type:			read (reloc) 
+	Offset/size:	0x235/1 
+	Protocol:		2.10+
 
-The payload may be compressed. The format of both the compressed and
-uncompressed data should be determined using the standard magic numbers.
-The currently supported compression formats are gzip (magic numbers 1F
-8B or 1F 9E), bzip2 (magic number 42 5A), LZMA (magic number 5D 00), XZ
-(magic number FD 37), and LZ4 (magic number 02 21). The uncompressed
-payload is currently always ELF (magic number 7F 45 4C 46).
+如果该字段非零，则表示为2的幂最小对齐方式，而不是优选的，由内核引导。
+如果引导加载程序使用这个字段，它应更新kernel_alignment字段所需的对齐单元;
 
-Field name: payload\_length Type: read Offset/size: 0x24c/4 Protocol:
-2.08+
+典型：
 
-The length of the payload.
+	kernel_alignment = 1 << min_alignment
 
-Field name: setup\_data Type: write (special) Offset/size: 0x250/8
-Protocol: 2.09+
+内核对齐方式如果严重不对，会对性能带来极大的损失。因此，一个加载器应该尝试每个2次幂的值，从kernel_alignment到这个对齐值。
 
-The 64-bit physical pointer to NULL terminated single linked list of
-struct setup\_data. This is used to define a more extensible boot
-parameters passing mechanism. The definition of struct setup\_data is as
-follow:
+	Field name:     xloadflags 
+	Type:           read 
+	Offset/size:    0x236/2 
+	Protocol:       2.12+
 
-struct setup\_data { u64 next; u32 type; u32 len; u8 data[0]; };
+这个字段是位域。
 
-Where, the next is a 64-bit physical pointer to the next node of linked
-list, the next field of the last node is 0; the type is used to identify
-the contents of data; the len is the length of data field; the data
-holds the real payload.
+	Bit 0 (read):	XLF_KERNEL_64
+		- 如果 1, 这个内核具有传统的64位入口地址在 0x200.
+  	Bit 1 (read): XLF_CAN_BE_LOADED_ABOVE_4G
+        - 如果 1, kernel/boot_params/cmdline/ramdisk 可以超过 4G.
+  	Bit 2 (read):	XLF_EFI_HANDOVER_32
+		- 如果 1, 内核支持在特定handover_offset的32位入口点。
+  	Bit 3 (read): XLF_EFI_HANDOVER_64
+		- 如果 1, 内核支持在handover_offset+0x200的64位入口点。
+  	Bit 4 (read): XLF_EFI_KEXEC
+		- 如果 1, 内核支持kexec的EFI启动与EFI运行时。
 
-This list may be modified at a number of points during the bootup
-process. Therefore, when modifying this list one should always make sure
-to consider the case where the linked list already contains entries.
+--
 
-Field name: pref\_address Type: read (reloc) Offset/size: 0x258/8
-Protocol: 2.10+
+	Field name:	cmdline_size 
+	Type:		read 
+	Offset/size:	0x238/4 
+	Protocol:	2.06+
 
-This field, if nonzero, represents a preferred load address for the
-kernel. A relocating bootloader should attempt to load at this address
-if possible.
+命令行的最大大小除去截止字符串。这意味着，命令行可以包含至多cmdline_size字符。随着协议版本2.05和更早的版本，最大大小为255。
 
-A non-relocatable kernel will unconditionally move itself and to run at
-this address.
+	Field name:	hardware_subarch 
+	Type:		write (optional, defaults to x86/PC) 
+	Offset/size:	0x23c/4 
+	Protocol:	2.07+
 
-Field name: init\_size Type: read Offset/size: 0x260/4
+在一个半虚拟化环境中，底层的硬件体系如中断处理，页表的处理，访问过程控制寄存器之间有很多不同。
 
-This field indicates the amount of linear contiguous memory starting at
-the kernel runtime start address that the kernel needs before it is
-capable of examining its memory map. This is not the same thing as the
-total amount of memory the kernel needs to boot, but it can be used by a
-relocating boot loader to help select a safe load address for the
-kernel.
+该字段允许引导装载程序告知内核我们是在一下这些环境中：
 
-The kernel runtime start address is determined by the following
-algorithm:
+  	0x00000000	The default x86/PC environment 
+	0x00000001	lguest 
+	0x00000002	Xen 
+	0x00000003	Moorestown MID 
+	0x00000004	CE4100 TV Platform
 
-if (relocatable\_kernel) runtime\_start = align\_up(load\_address,
-kernel\_alignment) else runtime\_start = pref\_address
+Field name:	hardware_subarch_data 
+Type:		write (subarch-dependent) 
+Offset/size:	0x240/8 
+Protocol:	2.07+
 
-Field name: handover\_offset Type: read Offset/size: 0x264/4
+一个指向特定于硬件的子体系数据， 该字段当前未使用默认的x86/PC环境，请不要修改。
+	
+	Field name:		payload_offset 
+	Type:			read 
+	Offset/size:	0x248/4 
+	Protocol:		2.08+
 
-This field is the offset from the beginning of the kernel image to the
-EFI handover protocol entry point. Boot loaders using the EFI handover
-protocol to boot the kernel should jump to this offset.
+如果不为零则此字段包含从保护模式的开头代码到有效负载的偏移量。
 
-See EFI HANDOVER PROTOCOL below for more details.
+该有效载荷可被压缩。压缩和非压缩数据格式应使用标准的幻数。目前支持的压缩格式为gzip的（幻数为1F 8B或1F 9E），bzip2压缩（幻数42 5A），LZMA（幻数5D 00），XZ（幻数FD 37），LZ4（幻数02 21）。目前未压缩的有效载荷是始终是ELF（幻数7F454C46）。
 
-\*\*\*\* THE IMAGE CHECKSUM
+	Field name:		payload_length 
+	Type:			read 
+	Offset/size:	0x24c/4 
+	Protocol:		2.08+
 
-From boot protocol version 2.08 onwards the CRC-32 is calculated over
-the entire file using the characteristic polynomial 0x04C11DB7 and an
-initial remainder of 0xffffffff. The checksum is appended to the file;
-therefore the CRC of the file up to the limit specified in the syssize
-field of the header is always 0.
+有效载荷的长度。
 
-\*\*\*\* THE KERNEL COMMAND LINE
+	Field name:		setup_data 
+	Type:			write (special) 
+	Offset/size:	0x250/8 
+	Protocol:		2.09+
 
-The kernel command line has become an important way for the boot loader
-to communicate with the kernel. Some of its options are also relevant to
-the boot loader itself, see "special command line options" below.
+64位物理指针指向以NULL为终止的结构setup\_data单链表。这是用来定义传递机制的更有扩展性的引导参数。结构setup_data的定义是如下：
 
-The kernel command line is a null-terminated string. The maximum length
-can be retrieved from the field cmdline\_size. Before protocol version
-2.06, the maximum was 255 characters. A string that is too long will be
-automatically truncated by the kernel.
+	struct setup_data 
+	{ 
+		u64 next;
+		u32 type;
+		u32 len;
+		u8  data[0]; 
+	};
 
-If the boot protocol version is 2.02 or later, the address of the kernel
-command line is given by the header field cmd\_line\_ptr (see above.)
-This address can be anywhere between the end of the setup heap and
-0xA0000.
+这里，next参数是64位物理指针的链表中下一个节点，最后一个节点的下一个字段是0;type被用于识别数据的内容;len为数据字段的长度;data保存真正的数据。
 
-If the protocol version is *not* 2.02 or higher, the kernel command line
-is entered using the following protocol:
+该列表可以在启动过程中的若干地点修改。因此，当修改该列表时，一定要考虑那里的链表已经包含条目的情况。
 
-    At offset 0x0020 (word), "cmd_line_magic", enter the magic
-    number 0xA33F.
+	Field name:		pref_address 
+	Type:			read (reloc) 
+	Offset/size:	0x258/8 
+	Protocol:		2.10+
 
-    At offset 0x0022 (word), "cmd_line_offset", enter the offset
-    of the kernel command line (relative to the start of the
-    real-mode kernel).
+如果此字段为非零值，代表了内核中的首选加载地址。一个可重定位引导程序应该尝试加载内核在这个地址。
 
-    The kernel command line *must* be within the memory region
-    covered by setup_move_size, so you may need to adjust this
-    field.
+	Field name:		init_size 
+	Type:			read 
+	Offset/size:	0x260/4
 
-\*\*\*\* MEMORY LAYOUT OF THE REAL-MODE CODE
+该字段表示线性连续内存的数量，该地址起始于内核运行时开始地址，该地址是内核在可以检查映射内存的之前使用的。这个跟内核启动需要的内存总量不一样，但是它可以被用来重定位内核加载器来帮助选择一个安全的可加载地址。
 
-The real-mode code requires a stack/heap to be set up, as well as memory
-allocated for the kernel command line. This needs to be done in the
-real-mode accessible memory in bottom megabyte.
+内核运行时开始地址由下列算法决定：
 
-It should be noted that modern machines often have a sizable Extended
-BIOS Data Area (EBDA). As a result, it is advisable to use as little of
-the low megabyte as possible.
+	if(relocatable_kernel)
+		runtime_start = align_up(load_address, kernel_alignment)
+	else
+		runtime_start = pref_address
 
-Unfortunately, under the following circumstances the 0x90000 memory
-segment has to be used:
+	Field name:		handover_offset 
+	Type:			read 
+	Offset/size:	0x264/4
 
-    - When loading a zImage kernel ((loadflags & 0x01) == 0).
-    - When loading a 2.01 or earlier boot protocol kernel.
+该字段表示的是从内核镜像开始到EFI 切换协议入口点的偏移。如果启动加载器使用EFI切换协议来启动内核，应该跳转到该偏移。
 
-      -> For the 2.00 and 2.01 boot protocols, the real-mode code
-         can be loaded at another address, but it is internally
-         relocated to 0x90000.  For the "old" protocol, the
-         real-mode code must be loaded at 0x90000.
+详细请查看EFI HANDOVER PROTOCOL章节。
 
-When loading at 0x90000, avoid using memory above 0x9a000.
+## 镜像检测 -- THE IMAGE CHECKSUM ##
 
-For boot protocol 2.02 or higher, the command line does not have to be
-located in the same 64K segment as the real-mode setup code; it is thus
-permitted to give the stack/heap the full 64K segment and locate the
-command line above it.
+在启动协议版本2.08之前，CRC-32使用多项式特征值0x04c11DB7和一个初始化余数0xFFFFFFFF来计算整个文件。校验和添加到该文件。因此文件中CRC一直到syssize字段中指定的上限都是0.
 
-The kernel command line should not be located below the real-mode code,
-nor should it be located in high memory.
+## 内核命令行 -- THE KERNEL COMMAND LINE ##
 
-\*\*\*\* SAMPLE BOOT CONFIGURATION
+内核命令行已经变成一种boot loader跟kernel之间交流的重要方式。许多选项同样也关系到boot loader自身， 查看"special command line options"了解详情。
 
-As a sample configuration, assume the following layout of the real mode
-segment:
+内核命令行是以null为结尾的字符串。最大长度由cmdline_size定义。在2.06协议之前，最大字符数是255.一个字符串如果超过这个长度会被自动截断。
 
-    When loading below 0x90000, use the entire segment:
+如果启动协议版本是2.02或之后的，内核命令行的地址是通过cmd_line_ptr给出（见上文）。这个地址可以是setup heap到0xA0000之间的任何值。
 
-    0x0000-0x7fff   Real mode kernel
-    0x8000-0xdfff   Stack and heap
-    0xe000-0xffff   Kernel command line
+如果协议版本不是2.02或者更高，内核命令行通过以下协议来键入：
 
-    When loading at 0x90000 OR the protocol version is 2.01 or earlier:
+	在 0x0020 (word)偏移处, "cmd_line_magic", 输入幻数 0xA33F.
+		
+	在 0x0022 (word)偏移处, "cmd_line_offset", 输入内核命令行偏移 (相对于实模式的开始处).
+		
+	内核命令行 *必须* 在 setup_move_size参数设定的内存区域之内, 所以你需要调整这个字段.
 
-    0x0000-0x7fff   Real mode kernel
-    0x8000-0x97ff   Stack and heap
-    0x9800-0x9fff   Kernel command line
+## 实模式代码内存布局 -- MEMORY LAYOUT OF THE REAL-MODE CODE ##
 
-Such a boot loader should enter the following fields in the header:
+实模式代码需要构建在堆栈的基础上，就像分配给内核命令行的一样。这需要在实模式可访问内存的兆字节的底部。
 
-    unsigned long base_ptr; /* base address for real-mode segment */
+现代的计算机通常都有一个可变大小的EBDA，这点需要强烈关注。这就使得使用尽量少的内存成为可能。
 
-    if ( setup_sects == 0 ) {
-        setup_sects = 4;
-    }
+不幸的是，在下列情况下的0x90000内存段必须使用：
 
-    if ( protocol >= 0x0200 ) {
-        type_of_loader = <type code>;
-        if ( loading_initrd ) {
-            ramdisk_image = <initrd_address>;
-            ramdisk_size = <initrd_size>;
-        }
+	- 当加载一个zImage镜像的时候 ((loadflags & 0x01) == 0).
+	- 当加载一个2.01或者之前的内核时候.
 
-        if ( protocol >= 0x0202 && loadflags & 0x01 )
-            heap_end = 0xe000;
-        else
-            heap_end = 0x9800;
+	->	对2.00和2.01引导协议，实模式代码可以在另一地址被加载，
+		但它是在内部迁移到0x90000。对 "旧" 协议，实模式代码必须在0x90000加载。
 
-        if ( protocol >= 0x0201 ) {
-            heap_end_ptr = heap_end - 0x200;
-            loadflags |= 0x80; /* CAN_USE_HEAP */
-        }
+当加载在0x90000,要避免使用高于0x9a000以上的内存。
 
-        if ( protocol >= 0x0202 ) {
-            cmd_line_ptr = base_ptr + heap_end;
-            strcpy(cmd_line_ptr, cmdline);
-        } else {
-            cmd_line_magic  = 0xA33F;
-            cmd_line_offset = heap_end;
-            setup_move_size = heap_end + strlen(cmdline)+1;
-            strcpy(base_ptr+cmd_line_offset, cmdline);
-        }
-    } else {
-        /* Very old kernel */
+对于2.02以及高于这个版本的启动协议，命令行不需要放置在相同的64K段，跟实模式setup代码一样。因此，它允许给堆/堆完整64K段和放置在它上面的命令行。
 
-        heap_end = 0x9800;
+内核命令行不应该被放置在低于实模式的代码地址，也不应该被放置在高地址。
 
-        cmd_line_magic  = 0xA33F;
-        cmd_line_offset = heap_end;
+## 简单的启动配置 -- SAMPLE BOOT CONFIGURATION ##
 
-        /* A very old kernel MUST have its real-mode code
-           loaded at 0x90000 */
+作为一个简单的配置，假设以下是实模式代码段：
 
-        if ( base_ptr != 0x90000 ) {
-            /* Copy the real-mode kernel */
-            memcpy(0x90000, base_ptr, (setup_sects+1)*512);
-            base_ptr = 0x90000;      /* Relocated */
-        }
+当加载到低于0x90000,使用全部段：
 
-        strcpy(0x90000+cmd_line_offset, cmdline);
+	0x0000-0x7fff	Real mode kernel 
+	0x8000-0xdfff	Stack and heap 
+	0xe000-0xffff	Kernel command line
 
-        /* It is recommended to clear memory up to the 32K mark */
-        memset(0x90000 + (setup_sects+1)*512, 0,
-               (64-(setup_sects+1))*512);
-    }
+当加载到0x90000或者协议版本是2.01或者之前的：
 
-\*\*\*\* LOADING THE REST OF THE KERNEL
+	0x0000-0x7fff	Real mode kernel 
+	0x8000-0x97ff	Stack and heap 
+	0x9800-0x9fff	Kernel command line
 
-The 32-bit (non-real-mode) kernel starts at offset (setup\_sects+1)\*512
-in the kernel file (again, if setup\_sects == 0 the real value is 4.) It
-should be loaded at address 0x10000 for Image/zImage kernels and
-0x100000 for bzImage kernels.
+如上的boot loader应该键入如下的头字段：
 
-The kernel is a bzImage kernel if the protocol \>= 2.00 and the 0x01 bit
-(LOAD\_HIGH) in the loadflags field is set:
+	unsigned long base_ptr;	/* base address for real-mode segment */
+	if ( setup_sects == 0 ) 
+	{ 
+		setup_sects = 4; 
+	}
+	if ( protocol >= 0x0200 ) 
+	{ 
+		type_of_loader = <type code>;
+		if ( loading_initrd ) 
+		{ 
+			ramdisk_image = <initrd_address>;
+			ramdisk_size = <initrd_size>; 
+		}
+		if ( protocol >= 0x0202 && loadflags & 0x01 ) 
+			heap_end = 0xe000; 
+		else 
+			heap_end = 0x9800;
+		if ( protocol >= 0x0201 ) 
+		{ 
+			heap_end_ptr = heap_end - 0x200;
+			loadflags |= 0x80; /* CAN_USE_HEAP */ 
+		}
+		if ( protocol >= 0x0202 ) 
+		{ 
+			cmd_line_ptr = base_ptr + heap_end;
+			strcpy(cmd_line_ptr, cmdline); 
+		} 
+		else 
+		{ 
+			cmd_line_magic	= 0xA33F;
+			cmd_line_offset = heap_end;
+			setup_move_size = heap_end + strlen(cmdline)+1;
+			strcpy(base_ptr+cmd_line_offset, cmdline); 
+		} 
+	} 
+	else 
+	{ 
+		/* Very old kernel */
+		heap_end = 0x9800;
+		cmd_line_magic	= 0xA33F;
+		cmd_line_offset = heap_end;
+		/* A very old kernel MUST have its real-mode code loaded at 0x90000 */
+		if ( base_ptr != 0x90000 ) 
+		{ 
+			/* Copy the real-mode kernel */
+			memcpy(0x90000, base_ptr, (setup_sects+1)*512);
+			base_ptr = 0x90000;		 /* Relocated */ 
+		}
+		strcpy(0x90000+cmd_line_offset, cmdline);
+		/* It is recommended to clear memory up to the 32K mark */
+		memset(0x90000 + (setup_sects+1)*512, 0, (64-(setup_sects+1))*512); 
+	}
 
-    is_bzImage = (protocol >= 0x0200) && (loadflags & 0x01);
-    load_address = is_bzImage ? 0x100000 : 0x10000;
+## 加载内核剩下的部分 -- LOADING THE REST OF THE KERNEL ##
 
-Note that Image/zImage kernels can be up to 512K in size, and thus use
-the entire 0x10000-0x90000 range of memory. This means it is pretty much
-a requirement for these kernels to load the real-mode part at 0x90000.
-bzImage kernels allow much more flexibility.
+32位（非实模式）内核开始于内核文件的(setup\_sects+1)*512偏移处（再次提醒，如果setup_sects == 0, 真实值是4）。该内核文件如果是Image/zImage的话，应该被加载在0x10000,如果是bzImage那么应该被加载在0x100000.
 
-\*\*\*\* SPECIAL COMMAND LINE OPTIONS
+如果内核文件是bzImage、启动协议 >= 2.00的话并且loadflags的0x01位(LOAD_HIGH字段)被设置：
 
-If the command line provided by the boot loader is entered by the user,
-the user may expect the following command line options to work. They
-should normally not be deleted from the kernel command line even though
-not all of them are actually meaningful to the kernel. Boot loader
-authors who need additional command line options for the boot loader
-itself should get them registered in Documentation/kernel-parameters.txt
-to make sure they will not conflict with actual kernel options now or in
-the future.
+	is_bzImage = (protocol >= 0x0200) && (loadflags & 0x01);
+	load_address = is_bzImage ? 0x100000 : 0x1000;
 
-vga=<mode> <mode> here is either an integer (in C notation, either
-decimal, octal, or hexadecimal) or one of the strings "normal" (meaning
-0xFFFF), "ext" (meaning 0xFFFE) or "ask" (meaning 0xFFFD). This value
-should be entered into the vid\_mode field, as it is used by the kernel
-before the command line is parsed.
+注：Image/zImage内核大小可达512k，并且有可能使用整个的0x1000-0x9000的内存空间。在这种条件下，加载这些内核文件的实模式部分到0x90000是非常有必要的。bzImage内核则灵活性更高点。
 
-mem=<size> <size> is an integer in C notation optionally followed by
-(case insensitive) K, M, G, T, P or E (meaning \<\< 10, \<\< 20, \<\<
-30, \<\< 40, \<\< 50 or \<\< 60). This specifies the end of memory to
-the kernel. This affects the possible placement of an initrd, since an
-initrd should be placed near end of memory. Note that this is an option
-to *both* the kernel and the bootloader!
+## 特殊命令行选项 -- SPECIAL COMMAND LINE OPTIONS ##
+如果boot loader的命令行选项是由用户提供，用户可能期望下面的命令行选项能够很好的工作。这些选项，即使有一些已经对内核来说没有意义了，仍然没有从内核命令行中被删除。Boot loader的创建者已经在Documentation/kernel-paramenters.txt文件中登记了那些需要额外设置的命令行选项，如果你需要新增的话，请查看该文档，避免冲突。
 
-initrd=<file> An initrd should be loaded. The meaning of <file> is
-obviously bootloader-dependent, and some boot loaders (e.g. LILO) do not
-have such a command.
+	vga=<mode> 
+		这里的<mode>是一个整数值（在C语言表示的话，无论是十进制、八进制或者十六进制），
+		或者是一下字符串中的一个:"normal"(代表0xFFFF), "ext"（代表0xFFFE）, "ask"
+		(代表0xFFFD).这些值应该通过vid_mode字段来设置，被内核在命令解析之前使用。
+	mem=<size> 
+		<size> 是一个整数值，可选项如下(大小写不敏感)K,M,G,T,P或者E(代表<<10, <<20
+		,<<30,<<40,<<50或者<<60).这个字段指明了内存的上限。这个参数可能会影响initrd
+		的加载地址，因为initrd通常应该被加载在内存的上限处。注：该字段是内核和bootloader
+		都有的选项。
+	initrd=<file> 
+		被加载的initrd文件。该文件是显式的被bootloader依赖的，有一些boot loader（例如
+ 		LILO）并没有这个选项。
 
-In addition, some boot loaders add the following options to the
-user-specified command line:
+此外，某些boot loader增加了一些用户指定的命令行选项：
 
-BOOT\_IMAGE=<file> The boot image which was loaded. Again, the meaning
-of <file> is obviously bootloader-dependent.
+	BOOT_IMAGE=<file> 
+		被加载的启动镜像。再次声明，<file>是被bootloader显式依赖的。
+	auto 
+		内核被加载过程不需要用户显式的干预。
 
-auto The kernel was booted without explicit user intervention.
+如果这些选项已经添加到boot loader中，强烈推荐这些选项放置在开头部分，位于用户指定字段或者配置指定字段命令行之前。否则，会产生如下困惑："init=/bin/sh"被"auto"字段扰乱了。
 
-If these options are added by the boot loader, it is highly recommended
-that they are located *first*, before the user-specified or
-configuration-specified command line. Otherwise, "init=/bin/sh" gets
-confused by the "auto" option.
+## 运行内核 -- RUNNING THE KERNEL ##
+跳转到内核入口之后就表示内核开始运行了，这个入口通常被放置在内核的实模式段偏移0x20处。这就是说，如果你把实模式内核代码加载到0x90000,那么内核入口点是0x9020:0000.
 
-\*\*\*\* RUNNING THE KERNEL
+在入口点，ds = es = ss，这几个段描述符应该指向实模式代码的开始处(如果是代码被加载在0x90000，那么该值为0x9000),sp应该被设置为一个合适的值，通常指向heap的顶部，并且中断被关闭了。甚至，为了防止内核bug，推荐将boot loader设置如下fs = gs = ds = es = ss。
 
-The kernel is started by jumping to the kernel entry point, which is
-located at *segment* offset 0x20 from the start of the real mode kernel.
-This means that if you loaded your real-mode kernel code at 0x90000, the
-kernel entry point is 9020:0000.
+举个例子：
 
-At entry, ds = es = ss should point to the start of the real-mode kernel
-code (0x9000 if the code is loaded at 0x90000), sp should be set up
-properly, normally pointing to the top of the heap, and interrupts
-should be disabled. Furthermore, to guard against bugs in the kernel, it
-is recommended that the boot loader sets fs = gs = ds = es = ss.
+	/* Note: in the case of the "old" kernel protocol, 
+	base_ptr must be == 0x90000 at this point; see the previous sample code */
+	
+	seg = base_ptr >> 4;
+	
+	cli();	/* Enter with interrupts disabled! */
+	
+	/* Set up the real-mode kernel stack */
+	_SS = seg;
+	_SP = heap_end;
+	_DS = _ES = _FS = _GS = seg;
+	jmp_far(seg+0x20, 0);	/* Run the kernel */
 
-In our example from above, we would do:
+如果你是从软盘启动，那么推荐在内核启动之前关闭软驱马达，因为内核启动之后中断就关闭了，这样马达就无法关闭了，特别是如果加载的内核中将软驱作为一个按需加载模块的话，就会麻烦了。
 
-    /* Note: in the case of the "old" kernel protocol, base_ptr must
-       be == 0x90000 at this point; see the previous sample code */
+## 高级boot loader hooks -- ADVANCED BOOT LOADER HOOKS ##
+如果boot loader运行在一个特别不友好的环境中(例如LOADLIN，该工具运行在DOS中)它可能遵循以下标准内存分配需求。这个boot loader可能使用以下hook，如果设置了，会被内核在合适的时机触发。使用这些hook也许就是一个完全的最后一招了！
 
-    seg = base_ptr >> 4;
+重要：所有的hook都必须行使保护%esp, %ebp, %esi和%edi的权利。
 
-    cli();  /* Enter with interrupts disabled! */
+	realmode_swtch: 
+		16位实模式远子程序，进入保护模式之前调用。默认程序禁用NMI，让你的程序也许应该这样做。
+  	code32_start: 
+		在过渡到保护模式后迅速“跳转”到的一个32位平坦模式程序，这时内核还没有被解压缩。没有
+		段，除了CS，被保证设置（现代的内核做的，但旧的没有这么做）;你应该自己将它们设置为
+		BOOT_DS（0x18）。
 
-    /* Set up the real-mode kernel stack */
-    _SS = seg;
-    _SP = heap_end;
+## 32位启动协议 -- 32-bit BOOT PROTOCOL ##
 
-    _DS = _ES = _FS = _GS = seg;
-    jmp_far(seg+0x20, 0);   /* Run the kernel */
+对于那些较新的BIOS来说，例如EFI， LinuxBIOS， 等等，哦，还有kexec，16位的基于传统BIOS的内核setup代码可以不使用了，所以一个32位的协议被提上日程了。
 
-If your boot sector accesses a floppy drive, it is recommended to switch
-off the floppy motor before running the kernel, since the kernel boot
-leaves interrupts off and thus the motor will not be switched off,
-especially if the loaded kernel has the floppy driver as a demand-loaded
-module!
+在32位的启动协议中，加载linux内核的第一步应该是设置启动参数(boot\_params结构体，传统称呼是"zero page")。分配给boot\_params的内存应该被初始化为0.然后内核偏移0x01f1处的setup header应该被加载到boot_params中，并且检测。setup header结尾地址可以通过以下计算的到：
 
-\*\*\*\* ADVANCED BOOT LOADER HOOKS
+	0x0202 + 0x0201的字节值
 
-If the boot loader runs in a particularly hostile environment (such as
-LOADLIN, which runs under DOS) it may be impossible to follow the
-standard memory location requirements. Such a boot loader may use the
-following hooks that, if set, are invoked by the kernel at the
-appropriate time. The use of these hooks should probably be considered
-an absolutely last resort!
+除了读/修改/写setup header中的结构boot\_params的作为16位引导协议，引导加载程序还应该填写结构体boot_params中在zero-page.txt描述的附加字段。
 
-IMPORTANT: All the hooks are required to preserve %esp, %ebp, %esi and
-%edi across invocation.
+设置结构体boot_params后，引导加载程序可以用16位引导协议同样的方式装载32/64位内核。
 
-realmode\_swtch: A 16-bit real mode far subroutine invoked immediately
-before entering protected mode. The default routine disables NMI, so
-your routine should probably do so, too.
+在32位引导协议，内核在跳转到32位的内核入口点后开始，也就是加载32/64位内核的开始地址。
 
-code32\_start: A 32-bit flat-mode routine *jumped* to immediately after
-the transition to protected mode, but before the kernel is uncompressed.
-No segments, except CS, are guaranteed to be set up (current kernels do,
-but older ones do not); you should set them up to BOOT\_DS (0x18)
-yourself.
+在该入口点，CPU必须已经处于32位的保护模式，并且禁用了页表；一个必须加载了\_\_BOOT\_CS(0x10)和\_\_BOOT\_DS(0x18)段描述符的GDT；这两项必须是4G的平坦段；\_\_BOOT\_CS必须有xr权限，\_\_BOOT_DS必须有wr权限.CS必须被设置为\_\_BOOT\_CS, DS、ES、SS必须被设置为\_\_BOOT\_DS;中断必须被禁用；%esi必须被设置为boot\_params结构体的基址；%ebp,%edi和%ebx设为0.
 
-    After completing your hook, you should jump to the address
-    that was in this field before your boot loader overwrote it
-    (relocated, if appropriate.)
+## 64位启动协议 -- 64-bit BOOT PROTOCOL ##
+对于机使用64位CPU和64位内核的机器，我们可以使用64位引导程序，所以我们需要一个64位引导协议。
 
-\*\*\*\* 32-bit BOOT PROTOCOL
+在64位的启动协议中，加载linux内核的第一步应该是设置启动参数(boot\_params结构体，传统称呼是"zero page")。分配给boot\_params的内存可以在任何地方，但是应该被初始化为0.然后内核偏移0x01f1处的setup header应该被加载到boot_params中，并且检测。setup header结尾地址可以通过以下计算的到：
 
-For machine with some new BIOS other than legacy BIOS, such as EFI,
-LinuxBIOS, etc, and kexec, the 16-bit real mode setup code in kernel
-based on legacy BIOS can not be used, so a 32-bit boot protocol needs to
-be defined.
+	0x0202 + 0x0201的字节值
 
-In 32-bit boot protocol, the first step in loading a Linux kernel should
-be to setup the boot parameters (struct boot\_params, traditionally
-known as "zero page"). The memory for struct boot\_params should be
-allocated and initialized to all zero. Then the setup header from offset
-0x01f1 of kernel image on should be loaded into struct boot\_params and
-examined. The end of setup header can be calculated as follow:
+除了读/修改/写setup header中的结构boot\_params的作为16位引导协议，引导加载程序还应该填写结构体boot_params中在zero-page.txt描述的附加字段。
 
-    0x0202 + byte value at offset 0x0201
+设置结构体boot_params后，引导加载程序可以用16位引导协议同样的方式装载64位内核，但是与32位不同的是，内核可以被加载到高于4G的地址。
 
-In addition to read/modify/write the setup header of the struct
-boot\_params as that of 16-bit boot protocol, the boot loader should
-also fill the additional fields of the struct boot\_params as that
-described in zero-page.txt.
+在64位引导协议，内核在跳转到64位的内核入口点后开始，这是加载64位内核的地址加上0x200。
 
-After setting up the struct boot\_params, the boot loader can load the
-32/64-bit kernel in the same way as that of 16-bit boot protocol.
+在该入口点，CPU必须已经处于64位的保护模式，并且开启了分页；通过setup_header.init_size设置了从加载内核的开始地址、0页的地址还有命令行缓存地址的映射范围；一个必须加载了\_\_BOOT\_CS(0x10)和\_\_BOOT\_DS(0x18)段描述符的GDT；这两项必须是4G的平坦段；\_\_BOOT\_CS必须有xr权限，\_\_BOOT_DS必须有wr权限.CS必须被设置为\_\_BOOT\_CS, DS、ES、SS必须被设置为\_\_BOOT\_DS;中断必须被禁用；%rsi必须被设置为boot\_params结构体的基址.
 
-In 32-bit boot protocol, the kernel is started by jumping to the 32-bit
-kernel entry point, which is the start address of loaded 32/64-bit
-kernel.
+## EFI切换协议 -- EFI HANDOVER PROTOCOL ##
+该协议允许boot loader推迟初始化到EFI启动桩。boot loader需要从启动镜像加载kernel/initrd(s),然后跳转到EFI切换协议的切入点，该入口点是HDR-> handover_offset表示的从startup_{32,64}开始计算的偏移量。
 
-At entry, the CPU must be in 32-bit protected mode with paging disabled;
-a GDT must be loaded with the descriptors for selectors **BOOT\_CS(0x10)
-and **BOOT\_DS(0x18); both descriptors must be 4G flat segment;
-**BOOT\_CS must have execute/read permission, and **BOOT\_DS must have
-read/write permission; CS must be **BOOT\_CS and DS, ES, SS must be
-**BOOT\_DS; interrupt must be disabled; %esi must hold the base address
-of the struct boot\_params; %ebp, %edi and %ebx must be zero.
+该切换入口点函数原型看起来是这样的：
 
-\*\*\*\* 64-bit BOOT PROTOCOL
+	efi_main(void *handle, efi_system_table_t *table, struct boot_params *bp)
 
-For machine with 64bit cpus and 64bit kernel, we could use 64bit
-bootloader and we need a 64-bit boot protocol.
+'handle'是由EFI固件传递到引导加载程序的EFI镜像处理句柄，'table'是EFI系统表 - 这是在UEFI规范第2.3节所述的“切换状态”的前两个参数。 'BP'是boot loader分配的启动params。
 
-In 64-bit boot protocol, the first step in loading a Linux kernel should
-be to setup the boot parameters (struct boot\_params, traditionally
-known as "zero page"). The memory for struct boot\_params could be
-allocated anywhere (even above 4G) and initialized to all zero. Then,
-the setup header at offset 0x01f1 of kernel image on should be loaded
-into struct boot\_params and examined. The end of setup header can be
-calculated as follows:
+boot loader*必须*填写bp中的字段，
 
-    0x0202 + byte value at offset 0x0201
-
-In addition to read/modify/write the setup header of the struct
-boot\_params as that of 16-bit boot protocol, the boot loader should
-also fill the additional fields of the struct boot\_params as described
-in zero-page.txt.
-
-After setting up the struct boot\_params, the boot loader can load
-64-bit kernel in the same way as that of 16-bit boot protocol, but
-kernel could be loaded above 4G.
-
-In 64-bit boot protocol, the kernel is started by jumping to the 64-bit
-kernel entry point, which is the start address of loaded 64-bit kernel
-plus 0x200.
-
-At entry, the CPU must be in 64-bit mode with paging enabled. The range
-with setup\_header.init\_size from start address of loaded kernel and
-zero page and command line buffer get ident mapping; a GDT must be
-loaded with the descriptors for selectors **BOOT\_CS(0x10) and
-**BOOT\_DS(0x18); both descriptors must be 4G flat segment; **BOOT\_CS
-must have execute/read permission, and **BOOT\_DS must have read/write
-permission; CS must be **BOOT\_CS and DS, ES, SS must be **BOOT\_DS;
-interrupt must be disabled; %rsi must hold the base address of the
-struct boot\_params.
-
-\*\*\*\* EFI HANDOVER PROTOCOL
-
-This protocol allows boot loaders to defer initialisation to the EFI
-boot stub. The boot loader is required to load the kernel/initrd(s) from
-the boot media and jump to the EFI handover protocol entry point which
-is hdr-\>handover\_offset bytes from the beginning of startup\_{32,64}.
-
-The function prototype for the handover entry point looks like this,
-
-    efi_main(void *handle, efi_system_table_t *table, struct boot_params *bp)
-
-'handle' is the EFI image handle passed to the boot loader by the EFI
-firmware, 'table' is the EFI system table - these are the first two
-arguments of the "handoff state" as described in section 2.3 of the UEFI
-specification. 'bp' is the boot loader-allocated boot params.
-
-The boot loader *must* fill out the following fields in bp,
-
-    o hdr.code32_start
-    o hdr.cmd_line_ptr
+	o hdr.code32_start o hdr.cmd_line_ptr
     o hdr.cmdline_size
     o hdr.ramdisk_image (if applicable)
     o hdr.ramdisk_size  (if applicable)
 
-All other fields should be zero.
+其他字段都设置为0.
+
+
+
+
+
 
