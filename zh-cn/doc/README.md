@@ -40,7 +40,7 @@
 
     * 如果原来有后缀，也一律改为 `.md`，不保留原来后缀。
 
-* 把 `en/` 下的英文原稿同步到 `zh-cn/` 下。
+* 把 `en/` 下的英文原稿同步到 `zh-cn/` 下，并把两个目录下的原稿一起提交为一笔 Git 修改记录。
 
     * *注*：请不要直接翻译 `en/` 下的内容，只翻译 `zh-cn/` 下的即可。
 
@@ -50,6 +50,7 @@
         $ sudo aptitude install -y retext git nodejs npm
         $ sudo ln -fs /usr/bin/nodejs /usr/bin/node
         $ sudo aptitude install -y calibre fonts-arphic-gbsn00lp
+        $ npm config set registry https://registry.npm.taobao.org
         $ sudo npm install gitbook-cli -g
 
     *注*：`calibre` 提供 `ebook-converter`，用于生成 pdf 等格式。
@@ -70,7 +71,7 @@
     * --target 和 --host 之类的命令或者参数最好用标示符 \` 括起来。效果如：`--target` 和 `--host`
     * 全篇要统一用中文标点符号，全部用全角。
     * 碰到专业名词，特定缩写，不需要翻译。
-    * 翻译后，在 `zh-cn/` 下不保留英文原文，只保留中文译文。
+    * 翻译后，只保留翻译后的中文译文，英文内容请移除。
     * 每翻译完一个段落请务必通读
         * 确保用词没有歧义，整段衔接流畅，如有必要请调整/添加必要的衔接词汇
         * 并对照英文原文确保没有漏掉原文任何需要表达的含义，不要刻意漏掉部分自己感觉模糊的词汇
