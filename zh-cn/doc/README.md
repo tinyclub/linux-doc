@@ -21,10 +21,10 @@
 
         git remote add my-linux-doc git@github.com:lzufalcon/linux-doc.git
 
-* 基于自己计划翻译的内容创建分支， 以 `Documentation/CodingStyle` 为例，可以基于远程最新的 master 分支创建 `codingstyle` 分支：
+* 基于自己计划翻译的内容创建分支， 以 `Documentation/CodingStyle` 为例，可以基于远程最新的 develop 分支创建 `codingstyle` 分支：
 
         git fetch --all
-        git checkout codingstyle tinyclub/master
+        git checkout codingstyle tinyclub/develop
 
 * 参照 [Markdown 语法](http://help.gitbook.com/format/markdown.html)，把存到 `en/` 下并转为 Markdown 格式（后缀为 `.md`），以 `CodingStyle` 为例：
 
@@ -126,7 +126,7 @@
 <!-- -->
         git checkout -b codingstyle_upstream codingstyle
         git fetch --all
-        git rebase --onto tinyclub/master --root
+        git rebase --onto tinyclub/develop --root
         git push my-linux-doc codingstyle_upstream
 
 
