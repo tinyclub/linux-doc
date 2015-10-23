@@ -55,8 +55,6 @@ v 0.01
 
 本书采用 GPL v2 协议发布。
 
-<hr>
-
 ### 关注我们
 
 -   [新浪微博](http://weibo.com/tinylaborg)
@@ -73,3 +71,6 @@ v 0.01
 * [C 语言编程透视](http://tinylab.gitbooks.io/cbook/)
 * [Shell 编程范例](http://tinylab.gitbooks.io/shellbook/)
 * [嵌入式 Linux 知识库(eLinux.org 中文版)](http://tinylab.gitbooks.io/elinux/)
+
+### 贡献者
+<hr>
