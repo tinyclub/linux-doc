@@ -74,3 +74,7 @@ v 0.01
 
 ### 贡献者
 <hr>
+-    [@wengpingbo](https://github.com/wengpingbo) (1) <br/>
+-    [@lzufalcon](https://github.com/lzufalcon) (1) <br/>
+-    [@hduffddybz](https://github.com/hduffddybz) (1) <br/>
+-    [@choleraehyq](https://github.com/choleraehyq) (1) <br/>
