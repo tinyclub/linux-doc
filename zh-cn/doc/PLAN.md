@@ -3721,7 +3721,7 @@
     -   workqueue.txt
     -   x86
         -   00-INDEX
-        -   boot.txt
+        -   boot.txt huddy1985
         -   early-microcode.txt
         -   earlyprintk.txt
         -   entry_64.txt
