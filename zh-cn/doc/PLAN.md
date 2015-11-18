@@ -450,7 +450,7 @@
         -   00-INDEX(@[choleraehyq])
         -   blkio-controller.txt
         -   cgroups.txt(@[choleraehyq])
-        -   cpuacct.txt
+        -   cpuacct.txt(@[choleraehyq])
         -   cpusets.txt
         -   devices.txt
         -   freezer-subsystem.txt
