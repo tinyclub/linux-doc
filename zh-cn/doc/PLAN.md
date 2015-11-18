@@ -447,10 +447,10 @@
         -   Makefile
         -   packet-writing.txt
     -   cgroups
-        -   00-INDEX
+        -   00-INDEX(@[choleraehyq])
         -   blkio-controller.txt
-        -   cgroups.txt
-        -   cpuacct.txt
+        -   cgroups.txt(@[choleraehyq])
+        -   cpuacct.txt(@[choleraehyq])
         -   cpusets.txt
         -   devices.txt
         -   freezer-subsystem.txt
