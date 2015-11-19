@@ -1,5 +1,4 @@
 CPU Accounting Controller
--------------------------
 
 The CPU accounting controller is used to group tasks using cgroups and
 account the CPU usage of these groups of tasks.
@@ -45,5 +44,6 @@ system times. This has two side effects:
 - It is theoretically possible to see wrong values for user and system times.
   This is because percpu_counter_read() on 32bit systems isn't safe
   against concurrent writes.
+
 - It is possible to see slightly outdated values for user and system times
   due to the batch processing nature of percpu_counter.
