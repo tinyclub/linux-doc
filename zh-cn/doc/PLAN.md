@@ -454,7 +454,7 @@
         -   cpusets.txt
         -   devices.txt
         -   freezer-subsystem.txt
-        -   hugetlb.txt
+        -   hugetlb.txt(@[choleraehyq])
         -   memcg_test.txt
         -   memory.txt
         -   net_cls.txt
