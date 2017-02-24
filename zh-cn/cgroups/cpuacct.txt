@@ -1,0 +1,38 @@
+> 原文: Documentation/cgroups/cpuacct.txt
+> 翻译: [@choleraehyq](https://github.com/choleraehyq)
+> 校订: []()
+
+# CPU 计数控制器
+
+CPU 计数控制器用于使用 cgroup 给任务分组，以及统计各组任务的 CPU 使用情况。
+
+CPU 计数控制器支持多层次组。一个计数组，会累加它包含的任务以及它所有子组的 CPU 使用数据。
+
+计数组会在 cgroup 文件系统第一次被挂载时创建。
+
+`mount -t cgroup -ocpuacct none /sys/fs/cgroup`
+
+使用上面这行命令，就可以在`/sys/fs/cgroup`看到初始计数组或者父计数组。在引导启动时，这个组包含系统中所有的任务。`/sys/fs/cgroup/tasks`列出了 cgroup 中的所有任务。'/sys/fs/cgroup/cpuacct.usage' 保存了 CPU 时间（以纳秒为单位）,这个数据是通过这个初始组来获取的，也就相当于系统中所有任务的数据。
+
+新的计数组可以在父组 `/sys/fs/cgroup`下创建。
+
+```bash
+cd /sys/fs/cgroup
+mkdir g1
+echo $$ > g1/tasks
+```
+
+以上几行命令创建了一个新的 g1 组，并且将当前的 shell 进程（bash）移进了这个组。 这个 bash 及其子进程所消耗的 CPU 时间可以从 g1/cpuacct.usage 中获取，同时这些数据也被累加在了 `/sys/fs/cgroup/cpuacct.usage`中。
+
+`cpuacct.stat`文件列出了按 user 项和 system 项分开的 CPU 时间数据。目前，以下这些统计数据是被支持的：
+
+user: cgroup 中的任务在用户态消耗的 CPU 时间。
+system: cgroup 中的任务在内核态消耗的 CPU 时间。
+
+user 和 system 数据都在 USER_HZ 单元中。
+
+cpuacct 控制器使用 `percpu_counter`接口来收集 user 和 system 时间数据。这样做由两个副作用：
+
+- 因为`percpu_counter_read()`在32位系统上无法安全地并发写，所以理论上有可能返回错误的 user 和 system 时间数据。
+
+- 因为`percpu_counter`的批处理要需要时间，所以可能会看到稍微有点滞后的 user 和 system 数据。
