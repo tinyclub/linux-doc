@@ -9,7 +9,7 @@
 
 * 注册并登录 github fork [代码仓库](https://github.com/tinyclub/linux-doc)
 
-* 注册 gitbook.com，在 gitbook.com 建立书籍并绑定到 github.com 刚 fork 的仓库。
+* 可选：注册 gitbook.com，在 gitbook.com 建立书籍并绑定到 github.com 刚 fork 的仓库。
 
 * Clone 代码仓库
 
@@ -21,10 +21,10 @@
 
         git remote add my-linux-doc git@github.com:lzufalcon/linux-doc.git
 
-* 基于自己计划翻译的内容创建分支， 以 `Documentation/CodingStyle` 为例，可以基于远程最新的 develop 分支创建 `codingstyle` 分支：
+* 基于自己计划翻译的内容创建分支， 以 `Documentation/CodingStyle` 为例，可以基于远程最新的 master 分支创建 `codingstyle` 分支：
 
         git fetch --all
-        git checkout codingstyle tinyclub/develop
+        git checkout codingstyle tinyclub/master
 
 * 参照 [Markdown 语法](http://help.gitbook.com/format/markdown.html)，把存到 `en/` 下并转为 Markdown 格式（后缀为 `.md`），以 `CodingStyle` 为例：
 
@@ -45,7 +45,7 @@
     * *注*：请不要直接翻译 `en/` 下的内容，只翻译 `zh-cn/` 下的即可。
 
 
-* 翻译前请参照如下安装 `gitbook` 环境，以 Ubuntu 为例
+* 可选：翻译前请参照如下安装 `gitbook` 环境，以 Ubuntu 为例
 
         $ sudo aptitude install -y retext git nodejs npm
         $ sudo ln -fs /usr/bin/nodejs /usr/bin/node
@@ -97,7 +97,7 @@
                     V2: ...
                     V3: ...
 
-* 翻译后预览和编译
+* 可选：翻译后预览和编译
 
     * 在本地编写可用 `Retext` 工具 预览，也可用 `pandoc` 转为 html（**注**：`pandoc` 转换结果跟 `gitbook` 略有差异）
 
@@ -126,11 +126,11 @@
 <!-- -->
         git checkout -b codingstyle_upstream codingstyle
         git fetch --all
-        git rebase --onto tinyclub/develop --root
+        git rebase --onto tinyclub/master --root
         git push my-linux-doc codingstyle_upstream
 
 
-* 之后，通过 Github 发送 Pull Request：本地选 `codingstyle_upstream`，远程选 `develop`，也即是说要把自己仓库中的 `codingstyle_upstream` 合并到远程的 `develop`
+* 之后，通过 Github 发送 Pull Request：本地选 `codingstyle_upstream`，远程选 `master`，也即是说要把自己仓库中的 `codingstyle_upstream` 合并到远程的 `master`
 
 * 评审人员收到后会分配人员评审
 
@@ -141,7 +141,7 @@
         // 处理来自校订人员的各种反馈
 
         git fetch --all
-        git rebase --onto tinyclub/develop --root
+        git rebase --onto tinyclub/master --root
         git push my-linux-doc codingstyle_upstream_v1
 
 * 重复上述 Pull Request 步骤，直到被 Merge 到主线
