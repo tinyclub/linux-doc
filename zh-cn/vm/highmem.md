@@ -1,4 +1,4 @@
-> 原文：[Documentation/vm/highmem.txt](https://www.kernel.org/doc/)<br />
+> 原文：[Documentation/vm/highmem.txt](https://www.kernel.org/doc/Documentation/vm/highmem.txt)<br />
 > 翻译：[@silenttung](https://github.com/dongfu8107)<br />
 > 校订：[@lzufalcon](https://github.com/lzufalcon)<br />
 
