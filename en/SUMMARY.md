@@ -2,6 +2,6 @@
 
 * [CodingStyle](CodingStyle.md)
 
-* vm/ - Virtual Memory
+* [Virtual Memory](vm/README.md)
 
     * [HIGH MEMORY HANDLING](vm/highmem.md)

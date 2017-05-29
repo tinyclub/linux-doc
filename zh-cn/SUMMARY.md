@@ -7,6 +7,6 @@
 
 * [编码风格](CodingStyle.md)
 
-* vm/ - 虚拟内存
+* [虚拟内存](vm/README.md)
 
     * [高端内存处理](vm/highmem.md)
