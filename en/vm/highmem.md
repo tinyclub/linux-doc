@@ -1,26 +1,19 @@
 
-			     ====================
-			     HIGH MEMORY HANDLING
-			     ====================
 
-By: Peter Zijlstra <a.p.zijlstra@chello.nl>
+## Contents
 
-Contents:
+-    [WHAT IS HIGH MEMORY?](#toc_19559_2936_1)
+-    [TEMPORARY VIRTUAL MAPPINGS](#toc_19559_2936_2)
+-    [USING KMAP_ATOMIC](#toc_19559_2936_3)
+-    [COST OF TEMPORARY MAPPINGS](#toc_19559_2936_4)
+-    [i386 PAE](#toc_19559_2936_5)
 
- (*) What is high memory?
+# HIGH MEMORY HANDLING
 
- (*) Temporary virtual mappings.
+`By: Peter Zijlstra <a.p.zijlstra@chello.nl>`
 
- (*) Using kmap_atomic.
-
- (*) Cost of temporary mappings.
-
- (*) i386 PAE.
-
-
-====================
-WHAT IS HIGH MEMORY?
-====================
+<span id="toc_19559_2936_1"></span>
+## WHAT IS HIGH MEMORY?
 
 High memory (highmem) is used when the size of physical memory approaches or
 exceeds the maximum size of virtual memory.  At that point it becomes
@@ -58,22 +51,22 @@ and user maps.  Some hardware (like some ARMs), however, have limited virtual
 space when they use mm context tags.
 
 
-==========================
-TEMPORARY VIRTUAL MAPPINGS
-==========================
+<span id="toc_19559_2936_2"></span>
+## TEMPORARY VIRTUAL MAPPINGS
+
 
 The kernel contains several ways of creating temporary mappings:
 
- (*) vmap().  This can be used to make a long duration mapping of multiple
+* vmap().  This can be used to make a long duration mapping of multiple
      physical pages into a contiguous virtual space.  It needs global
      synchronization to unmap.
 
- (*) kmap().  This permits a short duration mapping of a single page.  It needs
+* kmap().  This permits a short duration mapping of a single page.  It needs
      global synchronization, but is amortized somewhat.  It is also prone to
      deadlocks when using in a nested fashion, and so it is not recommended for
      new code.
 
- (*) kmap_atomic().  This permits a very short duration mapping of a single
+* kmap_atomic().  This permits a very short duration mapping of a single
      page.  Since the mapping is restricted to the CPU that issued it, it
      performs well, but the issuing task is therefore required to stay on that
      CPU until it has finished, lest some other task displace its mappings.
@@ -84,9 +77,8 @@ The kernel contains several ways of creating temporary mappings:
      It may be assumed that k[un]map_atomic() won't fail.
 
 
-=================
-USING KMAP_ATOMIC
-=================
+<span id="toc_19559_2936_3"></span>
+## USING KMAP_ATOMIC
 
 When and where to use kmap_atomic() is straightforward.  It is used when code
 wants to access the contents of a page that might be allocated from high memory
@@ -120,9 +112,8 @@ another you need to keep the kmap_atomic calls strictly nested, like:
 	kunmap_atomic(vaddr1);
 
 
-==========================
-COST OF TEMPORARY MAPPINGS
-==========================
+<span id="toc_19559_2936_4"></span>
+## COST OF TEMPORARY MAPPINGS
 
 The cost of creating temporary mappings can be quite high.  The arch has to
 manipulate the kernel's page tables, the data TLB and/or the MMU's registers.
@@ -135,23 +126,21 @@ case, the unmap operation may be a null operation.
 If CONFIG_MMU is not set, then there can be no temporary mappings and no
 highmem.  In such a case, the arithmetic approach will also be used.
 
-
-========
-i386 PAE
-========
+<span id="toc_19559_2936_5"></span>
+## i386 PAE
 
 The i386 arch, under some circumstances, will permit you to stick up to 64GiB
 of RAM into your 32-bit machine.  This has a number of consequences:
 
- (*) Linux needs a page-frame structure for each page in the system and the
+* Linux needs a page-frame structure for each page in the system and the
      pageframes need to live in the permanent mapping, which means:
 
- (*) you can have 896M/sizeof(struct page) page-frames at most; with struct
+* you can have 896M/sizeof(struct page) page-frames at most; with struct
      page being 32-bytes that would end up being something in the order of 112G
      worth of pages; the kernel, however, needs to store more than just
      page-frames in that memory...
 
- (*) PAE makes your page tables larger - which slows the system down as more
+* PAE makes your page tables larger - which slows the system down as more
      data has to be accessed to traverse in TLB fills and the like.  One
      advantage is that PAE has more PTE bits and can provide advanced features
      like NX and PAT.

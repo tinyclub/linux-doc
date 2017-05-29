@@ -6,3 +6,7 @@
     * [任务分工](doc/PLAN.md)
 
 * [编码风格](CodingStyle.md)
+
+* vm/ - 虚拟内存
+
+    * [高端内存处理](vm/highmem.md)
