@@ -7,6 +7,10 @@
 
 * [编码风格](CodingStyle.md)
 
+* [定时器](timer/README.md)
+
+    * [定时器使用统计](timer/timer_stats.md)
+
 * [输入设备](input/input.md)
 
     * [Input 驱动编程](input/input-programming.md)

@@ -1,5 +1,4 @@
 # timer_stats - timer usage statistics
-------------------------------------
 
 `timer_stats` is a debugging facility to make the timer (ab)usage in a Linux
 system visible to kernel and userspace developers. If enabled in the config
@@ -31,13 +30,16 @@ sampled information.
 The timer_stats functionality is inactive on bootup.
 
 To activate a sample period issue:
-># `echo 1 >/proc/timer_stats`
+
+    # echo 1 >/proc/timer_stats
 
 To stop a sample period issue:
-># `echo 0 >/proc/timer_stats`
+
+    # echo 0 >/proc/timer_stats
 
 The statistics can be retrieved by:
-># `cat /proc/timer_stats`
+
+    # cat /proc/timer_stats
 
 While sampling is enabled, each readout from `/proc/timer_stats` will see
 newly updated statistics. Once sampling is disabled, the sampled information
@@ -45,7 +47,7 @@ is kept until a new sample period is started. This allows multiple readouts.
 
 Sample output of `/proc/timer_stats`:
 
-```c
+```
 Timerstats sample period: 3.888770 s
   12,     0 swapper          hrtimer_stop_sched_tick (hrtimer_sched_tick)
   15,     1 swapper          hcd_submit_urb (rh_timer_func)
@@ -71,6 +73,7 @@ executed on expiry.
 
 Added flag to indicate 'deferrable timer' in `/proc/timer_stats`. A deferrable
 timer will appear as follows
-```c
+
+```
   10D,     1 swapper          queue_delayed_work_on (delayed_work_timer_fn)
 ```

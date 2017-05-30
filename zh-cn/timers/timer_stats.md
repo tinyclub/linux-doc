@@ -1,6 +1,6 @@
-> 原文: Documentation/timers/timer\_stats.txt
-> 翻译: [@hduffddybz](https://github.com/hduffddybz)
-> 校订: []()
+> 原文: [Documentation/timers/timer_stats.txt](https://www.kernel.org/doc/Documentation/timers/timer_stats.txt)<br/>
+> 翻译: [@hduffddybz](https://github.com/hduffddybz)<br/>
+> 校订: [@lzufalcon](https://github.com/lzufalcon)<br/>
 
 # `timer_stats` - 定时器使用信息
 
@@ -28,18 +28,22 @@
 `timer_stats` 功能在启动时是未被激活的。
 
 为激活一个采样周期：
-># `"echo 1 >/proc/timer_stats"`
+
+    # echo 1 >/proc/timer_stats
 
 停止一个采样周期：
-># `"echo 0 >/proc/timer_stats"`
+
+    # echo 0 >/proc/timer_stats
 
 统计信息可以这样被取出:
-># `"cat /proc/timer_stats"`
+
+    # cat /proc/timer_stats
 
 当采样被使能时，每一次从 `/proc/timer_stats` 的输出会看到新更新的统计数据
  一旦采样被禁用时，采样信息会保持直到新的采样周期启动。 这就允许多次读出。
 
 `/proc/timer_stats` 的样本输出样例:
+
 
 ```
 Timerstats sample period: 3.888770 s
@@ -63,7 +67,7 @@ Timerstats sample period: 3.888770 s
 
     Thomas, Ingo 
 
-在 `/proc/timer_stats` 中增加标志位 D 来表示 “可延期的定时器“。这样一个定时器例子如下：：
-```
- `10D,     1 swapper          queue_delayed_work_on (delayed_work_timer_fn`
-```
+在 `/proc/timer_stats` 中增加标志位 D 来表示 “可延期的定时器“。这样一个定时器例子如下：
+
+
+      10D,     1 swapper          queue_delayed_work_on (delayed_work_timer_fn)

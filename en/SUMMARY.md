@@ -2,6 +2,10 @@
 
 * [CodingStyle](CodingStyle.md)
 
+* [Timer](timers/README.md)
+
+    * [Timer Usage Statistics](timers/timer_stats.md)
+
 * [Input Device](input/input.md)
 
     * [Programming input drivers](input/input-programming.md)
