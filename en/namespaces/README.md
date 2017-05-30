@@ -1,0 +1,2 @@
+
+Various information about namespaces.
