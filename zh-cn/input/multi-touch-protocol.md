@@ -1,10 +1,10 @@
-> 原文：Documentation/input/multi-touch-protocol.txt<br />
+> 原文：[Documentation/input/multi-touch-protocol.txt](https://www.kernel.org/doc/Documentation/input/multi-touch-protocol.txt)<br />
 > 翻译：[@wengpingbo](https://github.com/wengpingbo)<br />
-> 校订：[@NULL](#NULL)<br />
+> 校订：[@lzufalcon](https://github.com/lzufalcon)<br />
 
 # 多点触控协议
 
-Copyright (C) 2009-2010 Henrik Rydberg <rydberg@euromail.se>
+> Copyright (C) 2009-2010 Henrik Rydberg <rydberg@euromail.se>
 
 ## 介绍
 

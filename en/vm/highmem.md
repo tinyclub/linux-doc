@@ -10,7 +10,7 @@
 
 # HIGH MEMORY HANDLING
 
-`By: Peter Zijlstra <a.p.zijlstra@chello.nl>`
+> By: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
 <span id="toc_19559_2936_1"></span>
 ## WHAT IS HIGH MEMORY?

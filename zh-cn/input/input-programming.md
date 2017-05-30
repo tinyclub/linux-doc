@@ -1,4 +1,4 @@
-> 原文：Documentation/input/input-programming.txt<br />
+> 原文：[Documentation/input/input-programming.txt](https://www.kernel.org/doc/Documentation/input/input-programming.txt)<br />
 > 翻译：[@wengpingbo](https://github.com/wengpingbo)<br />
 > 校订：[@lzufalcon](https://github.com/lzufalcon)<br />
 

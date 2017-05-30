@@ -13,7 +13,7 @@
 
 # 高端内存处理
 
-`By: Peter Zijlstra <a.p.zijlstra@chello.nl>`
+> By: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
 <span id="toc_24146_28010_2"></span>
 ## 什么是高端内存？
