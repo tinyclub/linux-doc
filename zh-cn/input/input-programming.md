@@ -2,10 +2,27 @@
 > 翻译：[@wengpingbo](https://github.com/wengpingbo)<br />
 > 校订：[@lzufalcon](https://github.com/lzufalcon)<br />
 
+
+## 目录
+
+-    [1. 创建一个 INPUT 设备驱动](#toc_26745_28551_1)
+    -    [1.0 最简单的例子](#toc_26745_28551_2)
+    -    [1.1 这个例子做了什么](#toc_26745_28551_3)
+    -    [1.2 `dev->open()` 和 `dev->close()`](#toc_26745_28551_4)
+    -    [1.3 基本事件类型](#toc_26745_28551_5)
+    -    [1.4 `BITS_TO_LONGS()`, `BIT_WORD()`, `BIT_MASK()`](#toc_26745_28551_6)
+    -    [1.5 `id*` 和 `name` 字段](#toc_26745_28551_7)
+    -    [1.6 keycode，keycodemax 和 keycodesize 字段](#toc_26745_28551_8)
+    -    [1.7 `dev->getkeycode()` 和 `dev->setkeycode()`](#toc_26745_28551_9)
+    -    [1.8 按键自动重复](#toc_26745_28551_10)
+    -    [1.9 处理输出事件的特殊事件类型](#toc_26745_28551_11)
+
 # INPUT 驱动编程
 
+<span id="toc_26745_28551_1"></span>
 ## 1. 创建一个 INPUT 设备驱动
 
+<span id="toc_26745_28551_2"></span>
 ### 1.0 最简单的例子
 
 这有一个非常简单的 INPUT 设备驱动例子。这个设备只有一个按钮，该按钮能通过 `BUTTON_PORT` 端口来访问。当按下或者释放时，设备会产生一个 `BUTTON_IRQ` 中断。驱动代码看上去像这样：
@@ -71,6 +88,7 @@ module_init(button_init);
 module_exit(button_exit);
 ```
 
+<span id="toc_26745_28551_3"></span>
 ### 1.1 这个例子做了什么
 
 首先，它包含了 `<linux/input.h>` 头文件，这是 INPUT 子系统的接口。该头文件提供了所有需要的定义。
@@ -102,6 +120,7 @@ module_exit(button_exit);
 
 调用来告诉接收这个事件的模块：我们已经发送了一个完整的事件。在只有一个按钮情况下，这看上去并不是很重要。但是对于那些像鼠标移动事件来说，这种调用就非常重要了。因为你不想单独处理 X 和 Y 值，这会导致异常的鼠标移动。
 
+<span id="toc_26745_28551_4"></span>
 ### 1.2 `dev->open()` 和 `dev->close()`
 
 假设该驱动需要不断轮询设备，因为它没有中断信号。但是长时间轮询代价很大，或者该设备占用了关键资源（例如，中断），不能长久占用。它可以利用 `close` 回调函数来暂停轮询，或者释放中断，利用 `open` 回调函数再次恢复轮询，注册中断。为了达到这样的效果，我们可以在驱动中加入如下代码：
@@ -135,6 +154,7 @@ static int __init button_init(void)
 
 `open()` 回调函数应该在成功时返回 0，错误时返回负值。`close()` 回调函数总是成功的（返回类型为 void）。
 
+<span id="toc_26745_28551_5"></span>
 ### 1.3 基本事件类型
 
 最简单的事件类型是 `EV_KEY`，用于按键和按钮。它通过如下调用上报给 INPUT 系统：
@@ -166,6 +186,7 @@ static int __init button_init(void)
 
 如果你不需要 `absfuzz` 和 `absflat`，你可以把它们设为 0，这意味着报的值是非常精准的，并且每次都是在点的中心位置。
 
+<span id="toc_26745_28551_6"></span>
 ### 1.4 `BITS_TO_LONGS()`, `BIT_WORD()`, `BIT_MASK()`
 
 这 3 个在 `bitops.h` 中的宏用于简化一些位计算：
@@ -174,6 +195,7 @@ static int __init button_init(void)
 * `BIT_WORD(x)`	 - 返回第 x 位在 long 类型数组中的位置
 * `BIT_MASK(x)`	 - 返回第 x 位在 long 中的位置掩码
 
+<span id="toc_26745_28551_7"></span>
 ### 1.5 `id*` 和 `name` 字段
 
 `dev->name` 必须在 INPUT 设备注册之前在驱动中设置。name 字段包含一个用户友好的设备名字，就像 “Generic button device” 一样。
@@ -184,20 +206,24 @@ static int __init button_init(void)
 
 `id` 和 `name` 字段能够通过 evdev 接口传递给上层应用。
 
+<span id="toc_26745_28551_8"></span>
 ### 1.6 keycode，keycodemax 和 keycodesize 字段
 
 有很多按键映射的 INPUT 设备应该使用这三个字段。 `keycode` 是一个数组，用于映射从扫码（scancode）到 INPUT 系统的按键码（keycode）。`keycodemax` 应该包含该数组的大小，而 `keycodesize` 则是数组里每一项的大小（字节数）。
 
 用户空间程序可以通过对应的 evdev 接口，使用 `EVIOCGKEYCODE` 和 `EVIOCSKEYCODE` ioctl 操作来查询和修改当前扫码到按键码的映射关系。当一个设备填充了前面提到的三个字段，其驱动应该基于内核默认的实现，设置和查询按键码映射。
 
+<span id="toc_26745_28551_9"></span>
 ### 1.7 `dev->getkeycode()` 和 `dev->setkeycode()`
 
 `getkeycode()` 和 `setkeycode()` 回调函数允许驱动覆盖 INPUT 核心提供的默认 `keycode/keycodesize/keycodemax` 映射机制，实现稀疏的按键映射。
 
+<span id="toc_26745_28551_10"></span>
 ### 1.8 按键自动重复
 
 按键自动重复比较简单。它是在 `input.c` 模块中处理的。硬件自动重复并没有被使用，因为并不是所有的设备都有这个功能，而且该功能不是很稳定（Toshiba 笔记本上的键盘）。要使能设备的自动重复功能，只需设置 `dev->evbit` 中的 `EV_REP`。INPUT 系统会处理所有的工作。
 
+<span id="toc_26745_28551_11"></span>
 ### 1.9 处理输出事件的特殊事件类型
 
 到目前为止，特殊事件类型有：

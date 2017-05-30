@@ -1,7 +1,21 @@
+## Contents
+
+-    [Introduction](#toc_29943_14468_1)
+-    [Protocol Usage](#toc_29943_14468_2)
+-    [Protocol Example A](#toc_29943_14468_3)
+-    [Protocol Example B](#toc_29943_14468_4)
+-    [Event Usage](#toc_29943_14468_5)
+-    [Event Semantics](#toc_29943_14468_6)
+-    [Event Computation](#toc_29943_14468_7)
+-    [Finger Tracking](#toc_29943_14468_8)
+-    [Gestures](#toc_29943_14468_9)
+-    [Notes](#toc_29943_14468_10)
+
 # Multi-touch (MT) Protocol
 
-Copyright (C) 2009-2010 Henrik Rydberg <rydberg@euromail.se>
+> Copyright (C) 2009-2010 Henrik Rydberg <rydberg@euromail.se>
 
+<span id="toc_29943_14468_1"></span>
 ## Introduction
 
 In order to utilize the full power of the new multi-touch and multi-user
@@ -17,6 +31,7 @@ receiver. For devices capable of tracking identifiable contacts (type
 B), the protocol describes how to send updates for individual contacts
 via event slots.
 
+<span id="toc_29943_14468_2"></span>
 ## Protocol Usage
 
 Contact details are sent sequentially as separate packets of `ABS_MT`
@@ -82,6 +97,7 @@ total number of type B slots reported in the absinfo for the `ABS_MT_SLOT` axis.
 
 The minimum value of the `ABS_MT_SLOT` axis must be 0.
 
+<span id="toc_29943_14468_3"></span>
 ## Protocol Example A
 
 Here is what a minimal event sequence for a two-contact touch would look
@@ -122,6 +138,7 @@ the `ABS_MT` events, the last `SYN_MT_REPORT` event may be omitted.
 Otherwise, the last `SYN_REPORT` will be dropped by the input core,
 resulting in no zero-contact event reaching userland.
 
+<span id="toc_29943_14468_4"></span>
 ## Protocol Example B
 
 Here is what a minimal event sequence for a two-contact touch would look
@@ -164,6 +181,7 @@ ABS_MT_TRACKING_ID -1
 SYN_REPORT
 ```
 
+<span id="toc_29943_14468_5"></span>
 ## Event Usage
 
 A set of `ABS_MT` events with the desired properties is defined. The
@@ -228,28 +246,29 @@ over time \[5\].
 
 In the type B protocol, `ABS_MT_TOOL_TYPE` and `ABS_MT_TRACKING_ID` are implicitly handled by input core; drivers should instead call `input_mt_report_slot_state()`.
 
+<span id="toc_29943_14468_6"></span>
 ## Event Semantics
 
-### `ABS_MT_TOUCH_MAJOR`
+- `ABS_MT_TOUCH_MAJOR`
 
 The length of the major axis of the contact. The length should be given
 in surface units. If the surface has an X times Y resolution, the
 largest possible value of `ABS_MT_TOUCH_MAJOR` is `sqrt(X^2 + Y^2)`,
 the diagonal \[4\].
 
-### `ABS_MT_TOUCH_MINOR`
+- `ABS_MT_TOUCH_MINOR`
 
 The length, in surface units, of the minor axis of the contact. If the
 contact is circular, this event can be omitted \[4\].
 
-### `ABS_MT_WIDTH_MAJOR`
+- `ABS_MT_WIDTH_MAJOR`
 
 The length, in surface units, of the major axis of the approaching tool.
 This should be understood as the size of the tool itself. The
 orientation of the contact and the approaching tool are assumed to be
 the same \[4\].
 
-### `ABS_MT_WIDTH_MINOR`
+- `ABS_MT_WIDTH_MINOR`
 
 The length, in surface units, of the minor axis of the approaching tool.
 Omit if circular \[4\].
@@ -259,19 +278,19 @@ the contact. The ratio `ABS_MT_TOUCH_MAJOR` / `ABS_MT_WIDTH_MAJOR`
 approximates the notion of pressure. The fingers of the hand and the
 palm all have different characteristic widths.
 
-### `ABS_MT_PRESSURE`
+- `ABS_MT_PRESSURE`
 
 The pressure, in arbitrary units, on the contact area. May be used
 instead of `TOUCH` and `WIDTH` for pressure-based devices or any device with
 a spatial signal intensity distribution.
 
-### `ABS_MT_DISTANCE`
+- `ABS_MT_DISTANCE`
 
 The distance, in surface units, between the contact and the surface.
 Zero distance means the contact is touching the surface. A positive
 number means the contact is hovering above the surface.
 
-### `ABS_MT_ORIENTATION`
+- `ABS_MT_ORIENTATION`
 
 The orientation of the touching ellipse. The value should describe a
 signed quarter of a revolution clockwise around the touch center. The
@@ -292,21 +311,21 @@ support is possible if the device can distinguish between the two axis,
 but not (uniquely) any values in between. In such cases, the range of
 `ABS_MT_ORIENTATION` should be \[0, 1\] \[4\].
 
-### `ABS_MT_POSITION_X`
+- `ABS_MT_POSITION_X`
 
 The surface X coordinate of the center of the touching ellipse.
 
-### `ABS_MT_POSITION_Y`
+- `ABS_MT_POSITION_Y`
 
 The surface Y coordinate of the center of the touching ellipse.
 
-### `ABS_MT_TOOL_X`
+- `ABS_MT_TOOL_X`
 
 The surface X coordinate of the center of the approaching tool. Omit if
 the device cannot distinguish between the intended touch point and the
 tool itself.
 
-### `ABS_MT_TOOL_Y`
+- `ABS_MT_TOOL_Y`
 
 The surface Y coordinate of the center of the approaching tool. Omit if
 the device cannot distinguish between the intended touch point and the
@@ -317,7 +336,7 @@ touch from the position of the tool. If both positions are present, the
 major tool axis points towards the touch point \[1\]. Otherwise, the
 tool axes are aligned with the touch axes.
 
-### `ABS_MT_TOOL_TYPE`
+- `ABS_MT_TOOL_TYPE`
 
 The type of approaching tool. A lot of kernel drivers cannot distinguish
 between different tool types, such as a finger or a pen. In such cases,
@@ -326,7 +345,7 @@ the event should be omitted. The protocol currently supports
 is handled by input core; drivers should instead use
 `input_mt_report_slot_state()`.
 
-### `ABS_MT_BLOB_ID`
+- `ABS_MT_BLOB_ID`
 
 The BLOB\_ID groups several packets together into one arbitrarily shaped
 contact. The sequence of points forms a polygon which defines the shape
@@ -335,7 +354,7 @@ devices, and should not be confused with the high-level trackingID
 \[5\]. Most type A devices do not have blob capability, so drivers can
 safely omit this event.
 
-### `ABS_MT_TRACKING_ID`
+- `ABS_MT_TRACKING_ID`
 
 The `TRACKING_ID` identifies an initiated contact throughout its life
 cycle \[5\]. The value range of the `TRACKING_ID` should be large enough
@@ -343,6 +362,7 @@ to ensure unique identification of a contact maintained over an extended
 period of time. For type B devices, this event is handled by input core;
 drivers should instead use `input_mt_report_slot_state()`.
 
+<span id="toc_29943_14468_7"></span>
 ## Event Computation
 
 The flora of different hardware unavoidably leads to some devices
@@ -392,6 +412,7 @@ ellipse should align with the vector (T - C), so the diameter must
 increase with distance(T, C). Finally, assume that the touch diameter is
 equal to the tool thickness, and we arrive at the formulas above.
 
+<span id="toc_29943_14468_8"></span>
 ## Finger Tracking
 
 The process of finger tracking, i.e., to assign a unique trackingID to
@@ -400,6 +421,7 @@ problem. At each event synchronization, the set of actual contacts is
 matched to the set of contacts from the previous synchronization. A full
 implementation can be found in \[3\].
 
+<span id="toc_29943_14468_9"></span>
 ## Gestures
 
 In the specific application of creating gesture events, the TOUCH and
@@ -409,6 +431,7 @@ MINOR parameters, one can also distinguish between a sweeping finger and
 a pointing finger, and with ORIENTATION, one can detect twisting of
 fingers.
 
+<span id="toc_29943_14468_10"></span>
 ## Notes
 
 In order to stay compatible with existing applications, the data

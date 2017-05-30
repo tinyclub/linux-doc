@@ -1,7 +1,23 @@
+## Contents
+
+-    [1. Creating an input device driver](#toc_25828_16712_1)
+    -    [1.0 The simplest example](#toc_25828_16712_2)
+    -    [1.1 What the example does](#toc_25828_16712_3)
+    -    [1.2 `dev->open()` and `dev->close()`](#toc_25828_16712_4)
+    -    [1.3 Basic event types](#toc_25828_16712_5)
+    -    [1.4 `BITS_TO_LONGS()`, `BIT_WORD()`, `BIT_MASK()`](#toc_25828_16712_6)
+    -    [1.5 The `id*` and `name` fields](#toc_25828_16712_7)
+    -    [1.6 The keycode, keycodemax, keycodesize fields](#toc_25828_16712_8)
+    -    [1.7 `dev->getkeycode()` and `dev->setkeycode()`](#toc_25828_16712_9)
+    -    [1.8 Key autorepeat](#toc_25828_16712_10)
+    -    [1.9 Other event types, handling output events](#toc_25828_16712_11)
+
 # Programming input drivers
 
+<span id="toc_25828_16712_1"></span>
 ## 1. Creating an input device driver
 
+<span id="toc_25828_16712_2"></span>
 ### 1.0 The simplest example
 
 Here comes a very simple example of an input device driver. The device has
@@ -69,6 +85,7 @@ module_init(button_init);
 module_exit(button_exit);
 ```
 
+<span id="toc_25828_16712_3"></span>
 ### 1.1 What the example does
 
 First it has to include the `<linux/input.h>` file, which interfaces to the
@@ -123,6 +140,7 @@ This doesn't seem important in the one button case, but is quite important
 for for example mouse movement, where you don't want the X and Y values
 to be interpreted separately, because that'd result in a different movement.
 
+<span id="toc_25828_16712_4"></span>
 ### 1.2 `dev->open()` and `dev->close()`
 
 In case the driver has to repeatedly poll the device, because it doesn't
@@ -165,6 +183,7 @@ disconnects. Calls to both callbacks are serialized.
 The `open()` callback should return a 0 in case of success or any nonzero value
 in case of failure. The `close()` callback (which is void) must always succeed.
 
+<span id="toc_25828_16712_5"></span>
 ### 1.3 Basic event types
 
 The most simple event type is EV_KEY, which is used for keys and buttons.
@@ -216,6 +235,7 @@ If you don't need absfuzz and absflat, you can set them to zero, which mean
 that the thing is precise and always returns to exactly the center position
 (if it has any).
 
+<span id="toc_25828_16712_6"></span>
 ### 1.4 `BITS_TO_LONGS()`, `BIT_WORD()`, `BIT_MASK()`
 
 These three macros from `bitops.h` help some bitfield computations:
@@ -224,6 +244,7 @@ These three macros from `bitops.h` help some bitfield computations:
 * `BIT_WORD(x)`	 - returns the index in the array in longs for bit x
 * `BIT_MASK(x)`	 - returns the index in a long for bit x
 
+<span id="toc_25828_16712_7"></span>
 ### 1.5 The `id*` and `name` fields
 
 The dev->name should be set before registering the input device by the input
@@ -240,6 +261,7 @@ driver.
 
 The id and name fields can be passed to userland via the evdev interface.
 
+<span id="toc_25828_16712_8"></span>
 ### 1.6 The keycode, keycodemax, keycodesize fields
 
 These three fields should be used by input devices that have dense keymaps.
@@ -253,12 +275,14 @@ When a device has all 3 aforementioned fields filled in, the driver may
 rely on kernel's default implementation of setting and querying keycode
 mappings.
 
+<span id="toc_25828_16712_9"></span>
 ### 1.7 `dev->getkeycode()` and `dev->setkeycode()`
 
 `getkeycode()` and `setkeycode()` callbacks allow drivers to override default
 `keycode/keycodesize/keycodemax` mapping mechanism provided by input core
 and implement sparse keycode maps.
 
+<span id="toc_25828_16712_10"></span>
 ### 1.8 Key autorepeat
 
 ... is simple. It is handled by the `input.c` module. Hardware autorepeat is
@@ -267,6 +291,7 @@ present, it is broken sometimes (at keyboards: Toshiba notebooks). To enable
 autorepeat for your device, just set EV_REP in `dev->evbit`. All will be
 handled by the input system.
 
+<span id="toc_25828_16712_11"></span>
 ### 1.9 Other event types, handling output events
 
 The other event types up to now are:
