@@ -23,7 +23,7 @@ v 0.01
 -   代码仓库：<https://github.com/tinyclub/linux-doc>
 -   在线阅读：<http://tinylab.gitbooks.io/linux-doc>
 -   项目首页：<http://www.tinylab.org/linux-doc>
--   实验云台：<http://tinylab.cloud:6080>
+-   实验云台：[在线学 Linux，Linux 0.11，汇编，Shell，C ...](http://tinylab.cloud:6080)
 
 ## 参与翻译
 
