@@ -11,6 +11,7 @@
     "links": {
         "sidebar": {
             "泰晓科技": "http://www.tinylab.org",
+            "实验云台": "http://tinylab.cloud:6080",
             "Linux Kernel Homepage": "http://www.kernel.org",
             "Linux Documentation Homepage": "https://www.kernel.org/doc/"
         }
