@@ -29,24 +29,9 @@ v 0.01
 
 请参考[译者须知](doc/README.md)。
 
-### 安装
-
-以 Ubuntu 为例：
-
-    $ sudo aptitude install -y retext git nodejs npm
-    $ sudo ln -fs /usr/bin/nodejs /usr/bin/node
-    $ sudo aptitude install -y calibre fonts-arphic-gbsn00lp
-    $ sudo npm install gitbook-cli -g
-
-### 下载
-
-    $ git clone https://github.com/tinyclub/open-c-book.git
-    $ cd open-c-book/
-
 ### 编译
 
-    $ gitbook build  // 编译成网页
-    $ gitbook pdf    // 编译成 pdf
+要编译本书，请使用 [Markdown Lab](http://tinylab.org/markdown-lab)。
 
 ### 纠错
 

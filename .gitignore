@@ -15,6 +15,7 @@ _book
 *.mobi
 *.pdf
 *.html
+*.log
 
 # vim buffer
 *.swp
