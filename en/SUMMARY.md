@@ -1,5 +1,7 @@
 # Summary
 
+* [Introduction](README.md)
+
 * [CodingStyle](CodingStyle.md)
 
 * [Timer](timers/README.md)
